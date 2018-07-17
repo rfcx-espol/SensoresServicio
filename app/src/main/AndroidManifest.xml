@@ -34,6 +34,10 @@
             android:enabled="true"
             android:exported="true" />
         <!-- Declaring broadcast receiver for BOOT_COMPLETED event. -->
+        <service
+            android:name=".servicios.SendingService"
+            android:enabled="true"
+            android:exported="true"></service>
         <receiver
             android:name=".servicios.ReceiverCall"
             android:enabled="true"
@@ -43,10 +47,6 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name=".servicios.SendingService"
-            android:enabled="true"
-            android:exported="true"></service>
     </application>
 
 </manifest>

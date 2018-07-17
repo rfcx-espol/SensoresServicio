@@ -14,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
@@ -51,7 +52,7 @@ public class ServiceReceiver extends Service{
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     // String para la direccion MAC
     private static String address = "98:D3:36:00:97:BA";
-    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "mediciones", null, 1);
+    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
     //-------------------------------------------
 
@@ -94,10 +95,11 @@ public class ServiceReceiver extends Service{
                     if (endOfLineIndex > 0) {
                         String medicion = DataStringIN.substring(0, endOfLineIndex);
                         String[] parts = medicion.split(",");
-                        String type = parts[0];
-                        String value = parts[1];
-                        String unit = parts[2];
-                        String location = parts[3];
+                        String sensorId = parts[0];
+                        String type = parts[1];
+                        String value = parts[2];
+                        String unit = parts[3];
+                        String location = parts[4];
                         Long tsLong = System.currentTimeMillis()/1000;
                         String ts = tsLong.toString();
 
@@ -106,9 +108,9 @@ public class ServiceReceiver extends Service{
                         //SaveData(ts+".txt", medicion);
                         //Toast.makeText(thisContext,"Data Guardada",Toast.LENGTH_SHORT).show();
                         //Log.d("hi", "Data Guardada");
-                        registrarMedicion(ts, type, value, unit, location);
-                        String[] datofinal = consultarMedicion();
-                        Log.d("Dato", ts+", "+type+", "+value+", "+unit+", "+location);
+                        registrarMedicion(ts, type, value, unit, location, sensorId);
+                        //String[] datofinal = consultarMedicion();
+                        Log.d("Dato", ts+", "+type+", "+value+", "+unit+", "+location+", "+sensorId);
                         //UserInterfaz.IdBufferIn.setText("Dato: " + datofinal[0] +", "+datofinal[1]+", "+datofinal[2]);//<-<- PARTE A MODIFICAR >->->
                         DataStringIN.delete(0, DataStringIN.length());
                     }
@@ -191,23 +193,6 @@ public class ServiceReceiver extends Service{
     }
 
 
-    private void SaveData(String filename, String body)
-    {
-        try {
-            File root = new File(Environment.getExternalStorageDirectory(), "Notes");
-            if (!root.exists()) {
-                root.mkdirs();
-            }
-            File gpxfile = new File(root, filename);
-            FileWriter writer = new FileWriter(gpxfile);
-            writer.append(body+"\n");
-            writer.flush();
-            writer.close();
-            //Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     //Crea la clase que permite crear el evento de conexion
     private class ConnectedThread extends Thread
@@ -260,43 +245,8 @@ public class ServiceReceiver extends Service{
 
     }
 
-    public void ejecutar(){
-        Tiempo a = new Tiempo();
-        c++;
-        if (c<30) {
-            a.execute();
-        }
-        Log.d("hi", "hilo ejecutado "+ c);
 
-    }
-
-    public void hilo() {
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public class Tiempo extends AsyncTask<Void,Integer,Boolean> {
-        @Override
-        protected Boolean doInBackground(Void... voids) {
-            for(int i=0;i<5;i++){
-                hilo();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Boolean aBoolean) {
-            super.onPostExecute(aBoolean);
-            ejecutar();
-            //MyConexionBT.write("temperature,"+c+",celsius,device#");
-            //Toast.makeText(MainActivity.this,"hola",Toast.LENGTH_SHORT).show();
-
-        }
-    }
-    public void registrarMedicion(String ts, String type, String value, String unit, String location)
+    public void registrarMedicion(String ts, String type, String value, String unit, String location, String id)
     {
         //ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "mediciones", null, 1);
         SQLiteDatabase db = conn.getWritableDatabase();
@@ -306,8 +256,9 @@ public class ServiceReceiver extends Service{
         values.put(Utilities.CAMPO_VALUE, value);
         values.put(Utilities.CAMPO_UNIT, unit);
         values.put(Utilities.CAMPO_LOCATION, location);
+        values.put(Utilities.CAMPO_SENSORID, id);
 
-        long result = db.insert(Utilities.TABLA_MEDICION, Utilities.CAMPO_VALUE, values);
+        long result = db.insert(Utilities.TABLA_MEDICION, Utilities.CAMPO_SENSORID, values);
         Log.d("DB", "ingresado el timestamp, dato, unit:" + ts +","+ value + "," + unit);
         db.close();
 

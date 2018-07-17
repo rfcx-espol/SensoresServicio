@@ -10,7 +10,6 @@ import android.os.PowerManager;
 import android.util.Log;
 
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
-import com.example.jorge.blue.entidades.medicion;
 import com.example.jorge.blue.utils.Identifiers;
 import com.example.jorge.blue.utils.Utilities;
 
@@ -23,16 +22,15 @@ import org.json.JSONObject;
 import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 
 
 public class SendingService extends Service {
     public static PowerManager.WakeLock wakeLock;
     private final IBinder mBinder = new LocalBinder();
+    String st;
     private static OkHttpClient okHttpClient = new OkHttpClient();
-    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "mediciones", null, 1);
+    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
     public class LocalBinder extends Binder {
         public SendingService getService() {
@@ -57,6 +55,10 @@ public class SendingService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         sendPost();
+        Log.d("SS", "Servicio Envio ejecutado");
+
+
+
         return Service.START_STICKY;
     }
 
@@ -67,48 +69,66 @@ public class SendingService extends Service {
     }
 
 
-
-    //CREAR BUILDER DEL CLIENTE PARA QUE EXPIRE DESPUÉS DE 10 MINUTOS SIN CONEXIÓN
-    public static void builder(){
-        OkHttpClient.Builder builder = new OkHttpClient.Builder();
-        builder.connectTimeout(10, TimeUnit.MINUTES)
-                .writeTimeout(10, TimeUnit.MINUTES)
-                .readTimeout(10, TimeUnit.MINUTES);
-        okHttpClient = builder.build();
-    }
-
-    public JSONArray consultarMediciones()
+    public JSONObject consultarMediciones()
     {
         SQLiteDatabase db = conn.getReadableDatabase();
         Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.TABLA_MEDICION, null);
         JSONArray jsonArray = new JSONArray();
+        JSONObject y = new JSONObject();
+        int c = 0;
+
+        boolean responseId = Utilities.getStationID(okHttpClient);
 
 
-        try {
-            while (cursor.moveToNext())
-            {
-                JSONObject j = new JSONObject();
-                j.put("timestamp", cursor.getString(0));
-                j.put("type", cursor.getString(1));
-                j.put("value", cursor.getString(2));
-                j.put("unit", cursor.getString(3));
-                j.put("location", cursor.getString(4));
-                jsonArray.put(j);
+        if(responseId) {
+
+            try {
+                while (cursor.moveToNext()) {
+                    JSONObject j = new JSONObject();
+
+                    j.put("StationId", Identifiers.ID_STATION);
+
+                    j.put("Timestamp", cursor.getString(0));
+                    j.put("Type", cursor.getString(1));
+                    j.put("Value", cursor.getString(2));
+                    j.put("Units", cursor.getString(3));
+                    j.put("Location", cursor.getString(5));
+                    j.put("SensorId", cursor.getString(4));
+                    jsonArray.put(j);
+                    //                Long tsLong = System.currentTimeMillis()/1000;
+                    //                String ts = tsLong.toString();
+                    //                j.put("StationId", "10");
+                    //                j.put("SensorId", c.toString());
+                    //                j.put("Timestamp", ts);
+                    //                j.put("Type", "Temperature");
+                    //                j.put("Value", cursor.getString(2));
+                    //                j.put("Units", "Celsius");
+                    //                j.put("Location", "Enviroment");
+                    //                jsonArray.put(j);
+
+                    c++;
+//                    if (c==3)
+//                    {
+//                        break;
+//                    }
+
+                }
+
+                y.put("data", jsonArray);
+            } catch (Exception e) {
+                Log.d("DB", "no se pudo cargar datos desde la base");
             }
-
-        }catch (Exception e)
-        {
-            Log.d("DB", "no se pudo cargar datos desde la base");
+            conn.close();
+            return y;
         }
-        conn.close();
-        return jsonArray;
+        return null;
     }
 
     public void sendPost() {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                int x = 0;
+
                 try {
                     URL url = new URL(Identifiers.URL_SERVER);
                     HttpURLConnection connect = (HttpURLConnection) url.openConnection();
@@ -118,9 +138,9 @@ public class SendingService extends Service {
                     connect.setDoOutput(true);
                     connect.setDoInput(true);
 
-                    JSONArray jsonParam = consultarMediciones();
+                    JSONObject jsonParam = consultarMediciones();
 
-                    Log.i("JSON", jsonParam.toString());
+                    Log.d("JSON", jsonParam.toString());
                     DataOutputStream os = new DataOutputStream(connect.getOutputStream());
                     //os.writeBytes(URLEncoder.encode(jsonParam.toString(), "UTF-8"));
                     os.writeBytes(jsonParam.toString());
@@ -128,17 +148,21 @@ public class SendingService extends Service {
                     os.flush();
                     os.close();
 
-                    Log.i("STATUS", String.valueOf(connect.getResponseCode()));
-                    Log.i("MSG" , connect.getResponseMessage());
+                    st = String.valueOf(connect.getResponseCode());
+                    Log.d("STATUS", st);
+                    Log.d("MSG" , connect.getResponseMessage());
 
                     connect.disconnect();
-                    x = 1;
+                    Thread.sleep(10000);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    Log.d("SS", "Error al  enviar datos");
+
                 }
-                if (x == 1)
+                if (st == "200")
                 {
                     borrarBD();
+                    Log.d("SS", "Data enviada y borrada");
                 }
             }
         });
