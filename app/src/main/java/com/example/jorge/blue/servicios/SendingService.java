@@ -28,7 +28,7 @@ import java.net.URL;
 public class SendingService extends Service {
     public static PowerManager.WakeLock wakeLock;
     private final IBinder mBinder = new LocalBinder();
-    String st;
+    int st;
     private static OkHttpClient okHttpClient = new OkHttpClient();
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
@@ -75,7 +75,7 @@ public class SendingService extends Service {
         Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.TABLA_MEDICION, null);
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
-        int c = 0;
+        //int c = 0;
 
         boolean responseId = Utilities.getStationID(okHttpClient);
 
@@ -95,22 +95,7 @@ public class SendingService extends Service {
                     j.put("Location", cursor.getString(5));
                     j.put("SensorId", cursor.getString(4));
                     jsonArray.put(j);
-                    //                Long tsLong = System.currentTimeMillis()/1000;
-                    //                String ts = tsLong.toString();
-                    //                j.put("StationId", "10");
-                    //                j.put("SensorId", c.toString());
-                    //                j.put("Timestamp", ts);
-                    //                j.put("Type", "Temperature");
-                    //                j.put("Value", cursor.getString(2));
-                    //                j.put("Units", "Celsius");
-                    //                j.put("Location", "Enviroment");
-                    //                jsonArray.put(j);
 
-                    c++;
-//                    if (c==3)
-//                    {
-//                        break;
-//                    }
 
                 }
 
@@ -142,27 +127,26 @@ public class SendingService extends Service {
 
                     Log.d("JSON", jsonParam.toString());
                     DataOutputStream os = new DataOutputStream(connect.getOutputStream());
-                    //os.writeBytes(URLEncoder.encode(jsonParam.toString(), "UTF-8"));
                     os.writeBytes(jsonParam.toString());
 
                     os.flush();
                     os.close();
 
-                    st = String.valueOf(connect.getResponseCode());
-                    Log.d("STATUS", st);
+                    st = connect.getResponseCode();
+                    Log.d("STATUS", String.valueOf(st));
                     Log.d("MSG" , connect.getResponseMessage());
 
                     connect.disconnect();
-                    Thread.sleep(10000);
+                    if (st == 200)
+                    {
+                        borrarBD();
+                        Log.d("SS", "Data enviada y borrada");
+                    }
+                    //Thread.sleep(10000);
                 } catch (Exception e) {
                     e.printStackTrace();
                     Log.d("SS", "Error al  enviar datos");
 
-                }
-                if (st == "200")
-                {
-                    borrarBD();
-                    Log.d("SS", "Data enviada y borrada");
                 }
             }
         });
@@ -173,7 +157,8 @@ public class SendingService extends Service {
     public void borrarBD()
     {
         SQLiteDatabase db = conn.getReadableDatabase();
-        Cursor cursor = db.rawQuery("DELETE FROM " + Utilities.TABLA_MEDICION, null);
+        Log.d("DB", "DELETE FROM " + Utilities.TABLA_MEDICION);
+        db.execSQL("DELETE FROM " + Utilities.TABLA_MEDICION);
         conn.close();
     }
 

@@ -12,11 +12,7 @@ import android.bluetooth.BluetoothSocket;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
-import android.os.AsyncTask;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -29,12 +25,12 @@ import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Utilities;
 
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
+
+import static com.example.jorge.blue.utils.Identifiers.BT_address;
 
 public class ServiceReceiver extends Service{
 
@@ -50,8 +46,6 @@ public class ServiceReceiver extends Service{
     private ConnectedThread MyConexionBT;
     // Identificador unico de servicio - SPP UUID
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    // String para la direccion MAC
-    private static String address = "98:D3:36:00:97:BA";
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
     //-------------------------------------------
@@ -60,7 +54,6 @@ public class ServiceReceiver extends Service{
     public void onCreate(){
         Log.d("hi", "Servicio Creado");
 
-        address = "98:D3:36:00:97:BA";
 
 
         //MANTENER ENCENDIDO EL CPU DEL CELULAR AL APAGAR LA PANTALLA
@@ -85,7 +78,7 @@ public class ServiceReceiver extends Service{
 
         bluetoothIn = new Handler() {
             public void handleMessage(android.os.Message msg) {
-                Log.d("hi", "Handler creado");
+                Log.d("BT", "Handler creado");
                 if (msg.what == handlerState) {
                     String readMessage = (String) msg.obj;
                     DataStringIN.append(readMessage);
@@ -102,16 +95,7 @@ public class ServiceReceiver extends Service{
                         String location = parts[4];
                         Long tsLong = System.currentTimeMillis()/1000;
                         String ts = tsLong.toString();
-
-
-                        //UserInterfaz.IdBufferIn.setText("Dato: " + medicion);//<-<- PARTE A MODIFICAR >->->
-                        //SaveData(ts+".txt", medicion);
-                        //Toast.makeText(thisContext,"Data Guardada",Toast.LENGTH_SHORT).show();
-                        //Log.d("hi", "Data Guardada");
                         registrarMedicion(ts, type, value, unit, location, sensorId);
-                        //String[] datofinal = consultarMedicion();
-                        Log.d("Dato", ts+", "+type+", "+value+", "+unit+", "+location+", "+sensorId);
-                        //UserInterfaz.IdBufferIn.setText("Dato: " + datofinal[0] +", "+datofinal[1]+", "+datofinal[2]);//<-<- PARTE A MODIFICAR >->->
                         DataStringIN.delete(0, DataStringIN.length());
                     }
                 }
@@ -120,9 +104,7 @@ public class ServiceReceiver extends Service{
 
         btAdapter = BluetoothAdapter.getDefaultAdapter(); // get Bluetooth adapter
 
-
-
-        BluetoothDevice device = btAdapter.getRemoteDevice(address);
+        BluetoothDevice device = btAdapter.getRemoteDevice(BT_address);
 
 
         while (true) {
@@ -151,22 +133,12 @@ public class ServiceReceiver extends Service{
         MyConexionBT.start();
 
 
-
-
-
-        //btAdapter = BluetoothAdapter.getDefaultAdapter(); // get Bluetooth adapter
-//        Tiempo a = new Tiempo();
-//        Log.d("hi", "por ejecutar el hilo");
-//        c=20;
-//        a.execute();
         return START_STICKY;
     }
 
     @Override
     public void onDestroy()
     {
-        //Log.d("entro aqui", "si");
-        c=50;
         if (btSocket!=null)
         {
             try {btSocket.close();}
@@ -230,7 +202,7 @@ public class ServiceReceiver extends Service{
                 }
             }
         }
-        //Envio de trama
+        //Envio de trama, esto sirve para enviar desde el celular al BT, por ahora no se la usa
         public void write(String input)
         {
             try {
@@ -248,7 +220,6 @@ public class ServiceReceiver extends Service{
 
     public void registrarMedicion(String ts, String type, String value, String unit, String location, String id)
     {
-        //ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "mediciones", null, 1);
         SQLiteDatabase db = conn.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(Utilities.CAMPO_TIMESTAMP, ts);
@@ -264,26 +235,4 @@ public class ServiceReceiver extends Service{
 
     }
 
-    public String[] consultarMedicion()
-    {
-        SQLiteDatabase db = conn.getReadableDatabase();
-        String[] parametros = {};
-        String[] campos = {Utilities.CAMPO_VALUE, Utilities.CAMPO_TYPE, Utilities.CAMPO_UNIT};
-        String[] salida =  new String[3];
-
-        try {
-            Cursor cursor = db.query(Utilities.TABLA_MEDICION, campos,  null, null, null, null, null);
-            cursor.moveToLast();
-            salida[0] = cursor.getString(0);
-            salida[1] = cursor.getString(1);
-            salida[2] = cursor.getString(2);
-            cursor.close();
-
-        }catch (Exception e)
-        {
-            Log.d("DB", "no se pudo cargar datos desde la base");
-        }
-        conn.close();
-        return salida;
-    }
 }

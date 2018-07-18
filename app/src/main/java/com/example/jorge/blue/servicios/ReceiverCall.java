@@ -9,6 +9,8 @@ import android.os.SystemClock;
 
 
 import android.util.Log;
+
+import static com.example.jorge.blue.utils.Identifiers.delta_time;
 import static com.example.jorge.blue.utils.Identifiers.pendingIntent;
 import static com.example.jorge.blue.utils.Identifiers.alarmManager;
 import android.widget.Toast;
@@ -38,11 +40,6 @@ public class ReceiverCall extends BroadcastReceiver {
 
             if (!onService2) {
                 Toast.makeText(context, "Servicio iniciado (boot)", Toast.LENGTH_LONG).show();
-
-
-//                Intent myIntent2 = new Intent(context, SendingService.class);
-//                context.startService(myIntent2);
-
                 Intent myIntent = new Intent(context, ServiceReceiver.class);
                 context.startService(myIntent);
 
@@ -54,12 +51,10 @@ public class ReceiverCall extends BroadcastReceiver {
                         new Intent(context, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
                 alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
                 if (alarmManager != null) {
-                    alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 1000,
-                            4000, pendingIntent);
+                    alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
+                            delta_time, pendingIntent);
                     Log.d("ALARMA", "ALARMA CREADA DESPUÉS DE REINICIAR EL DISPOSITIVO");
                 }
-//                Intent myIntent2 = new Intent(context, ServiceReceiver.class);
-//                context.startService(myIntent2);
                 onService = true;
             }
 
