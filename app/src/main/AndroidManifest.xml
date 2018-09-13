@@ -37,7 +37,8 @@
         <service
             android:name=".servicios.SendingService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
+
         <receiver
             android:name=".servicios.ReceiverCall"
             android:enabled="true"
@@ -47,6 +48,7 @@
             </intent-filter>
         </receiver>
 
+        <activity android:name=".activities.DispositivosBT"></activity>
     </application>
 
 </manifest>

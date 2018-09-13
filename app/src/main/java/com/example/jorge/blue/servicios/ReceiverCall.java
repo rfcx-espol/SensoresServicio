@@ -14,7 +14,6 @@ import static com.example.jorge.blue.utils.Identifiers.delta_time;
 import static com.example.jorge.blue.utils.Identifiers.pendingIntent;
 import static com.example.jorge.blue.utils.Identifiers.alarmManager;
 import android.widget.Toast;
-import com.example.jorge.blue.activities.UserInterfaz;
 
 
 

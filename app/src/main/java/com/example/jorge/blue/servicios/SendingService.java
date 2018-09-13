@@ -23,12 +23,14 @@ import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 
 
 public class SendingService extends Service {
     public static PowerManager.WakeLock wakeLock;
     private final IBinder mBinder = new LocalBinder();
     int st;
+    boolean responseId;
     private static OkHttpClient okHttpClient = new OkHttpClient();
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
@@ -47,6 +49,8 @@ public class SendingService extends Service {
     public void onCreate() {
 
         //MANTENER ENCENDIDO EL CPU DEL CELULAR AL APAGAR LA PANTALLA
+        //responseId = Utilities.getStationID(okHttpClient);
+        setAPIKey(getApplicationContext());
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakelockTag");
         wakeLock.acquire();
@@ -54,6 +58,7 @@ public class SendingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        responseId = Utilities.getStationID(okHttpClient);
         sendPost();
         Log.d("SS", "Servicio Envio ejecutado");
 
@@ -76,8 +81,6 @@ public class SendingService extends Service {
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
         //int c = 0;
-
-        boolean responseId = Utilities.getStationID(okHttpClient);
 
 
         if(responseId) {
@@ -113,6 +116,8 @@ public class SendingService extends Service {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
+                Log.d("APIKEY", Identifiers.APIKey);
+                Log.d("APIKEY", Identifiers.ID_STATION);
 
                 try {
                     URL url = new URL(Identifiers.URL_SERVER);
@@ -131,6 +136,7 @@ public class SendingService extends Service {
 
                     os.flush();
                     os.close();
+                    //borrarBD();
 
                     st = connect.getResponseCode();
                     Log.d("STATUS", String.valueOf(st));

@@ -18,9 +18,12 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.Toast;
 
 
+import com.example.jorge.blue.R;
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Utilities;
 
@@ -28,6 +31,7 @@ import com.example.jorge.blue.utils.Utilities;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.example.jorge.blue.utils.Identifiers.BT_address;
@@ -44,6 +48,7 @@ public class ServiceReceiver extends Service{
     private BluetoothSocket btSocket = null;
     private StringBuilder DataStringIN = new StringBuilder();
     private ConnectedThread MyConexionBT;
+    private ArrayAdapter mPairedDevicesArrayAdapter;
     // Identificador unico de servicio - SPP UUID
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
@@ -53,6 +58,24 @@ public class ServiceReceiver extends Service{
     @Override
     public void onCreate(){
         Log.d("hi", "Servicio Creado");
+        //ListView IdLista = new ListView(thisContext);
+        btAdapter= BluetoothAdapter.getDefaultAdapter();
+        mPairedDevicesArrayAdapter = new ArrayAdapter(this, R.layout.nombres_dispositivos);
+        Set<BluetoothDevice> pairedDevices = btAdapter.getBondedDevices();
+        //IdLista.setAdapter(mPairedDevicesArrayAdapter);
+        if (pairedDevices.size() > 0)
+        {
+            for (BluetoothDevice device : pairedDevices) { //EN CASO DE ERROR LEER LA ANTERIOR EXPLICACION
+                mPairedDevicesArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+                Log.d("BTA1", device.getAddress());
+                BT_address = device.getAddress();
+
+            }
+        }
+        //String info = IdLista.getAdapter().toString();
+        //Log.d("adap", info);
+        //String address = info.substring(info.length() - 17);
+        //Log.d("BTA2", address);
 
 
 

@@ -29,7 +29,7 @@ public class Identifiers {
     public static boolean threadRunning = true;
     public static String ID_STATION;
     public static int delta_time =  60 * 1000;   //60 seg
-    public static String BT_address = "98:D3:36:00:97:BA";
+    public static String BT_address = "";
 
     @SuppressLint("HardwareIds")
     public static void setAPIKey(Context context){

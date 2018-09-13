@@ -56,8 +56,8 @@ public class UserInterfaz extends AppCompatActivity {
         IdApagar = (Button) findViewById(R.id.IdApagar);
         IdDesconectar = (Button) findViewById(R.id.IdDesconectar);
         IdBufferIn = (TextView) findViewById(R.id.IdBufferIn);
-        setAPIKey(getApplicationContext());
-        Log.d("APIKEY", Identifiers.APIKey);
+        //setAPIKey(getApplicationContext());
+        //Log.d("APIKEY", Identifiers.APIKey);
 
 
 
