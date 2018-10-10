@@ -14,7 +14,7 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:layout_marginTop="12dp"
-        android:text="control Bluetooth " />
+        android:text="Control USB " />
 
     <Button
         android:id="@+id/IdEncender"

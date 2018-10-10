@@ -27,7 +27,7 @@ public class Identifiers {
     public static String APIKey;
     public static Call call;
     public static boolean threadRunning = true;
-    public static String ID_STATION;
+    public static String ID_STATION = "5b4c066c89e5d232734c6845";
     public static int delta_time =  60 * 1000;   //60 seg
     public static String BT_address = "";
 

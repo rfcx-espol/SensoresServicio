@@ -28,6 +28,7 @@ import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 
 public class SendingService extends Service {
     public static PowerManager.WakeLock wakeLock;
+    public static String TAG = "USB-Service";
     private final IBinder mBinder = new LocalBinder();
     int st;
     boolean responseId;
@@ -52,14 +53,14 @@ public class SendingService extends Service {
         //responseId = Utilities.getStationID(okHttpClient);
         setAPIKey(getApplicationContext());
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakelockTag");
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
         wakeLock.acquire();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         responseId = Utilities.getStationID(okHttpClient);
-        sendPost();
+        //sendPost();
         Log.d("SS", "Servicio Envio ejecutado");
 
 
@@ -139,7 +140,7 @@ public class SendingService extends Service {
                     //borrarBD();
 
                     st = connect.getResponseCode();
-                    Log.d("STATUS", String.valueOf(st));
+                    Log.d("STATUS http", String.valueOf(st));
                     Log.d("MSG" , connect.getResponseMessage());
 
                     connect.disconnect();
@@ -148,7 +149,7 @@ public class SendingService extends Service {
                         borrarBD();
                         Log.d("SS", "Data enviada y borrada");
                     }
-                    //Thread.sleep(10000);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     Log.d("SS", "Error al  enviar datos");

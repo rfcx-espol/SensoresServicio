@@ -1,23 +1,23 @@
 package com.example.jorge.blue.activities;
 
 
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.os.SystemClock;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.example.jorge.blue.R;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
-import com.example.jorge.blue.utils.Identifiers;
 
 import static com.example.jorge.blue.utils.Identifiers.delta_time;
 import static com.example.jorge.blue.utils.Identifiers.onService;
@@ -30,7 +30,7 @@ import java.io.IOException;
 
 import java.util.UUID;
 
-public class UserInterfaz extends AppCompatActivity {
+public class UserInterfaz extends Activity {
 
     private static final String TAG = "hooli";
     //1)

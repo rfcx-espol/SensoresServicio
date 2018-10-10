@@ -1,11 +1,11 @@
 package com.example.jorge.blue.activities;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.os.SystemClock;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
 import android.bluetooth.BluetoothAdapter;
@@ -31,7 +31,7 @@ import com.example.jorge.blue.servicios.ServiceReceiver;
 import java.util.List;
 import java.util.Set;
 
-public class DispositivosBT extends AppCompatActivity {
+public class DispositivosBT extends Activity {
 
     //1)
     // Depuración de LOGCAT

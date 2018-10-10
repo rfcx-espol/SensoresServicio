@@ -13,7 +13,7 @@
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="49dp"
-        android:text="Dispositivos Vinculados" />
+        android:text="Dispositivo USB" />
 
     <ListView
         android:id="@+id/IdLista"
