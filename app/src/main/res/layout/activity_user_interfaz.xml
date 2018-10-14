@@ -1,59 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.example.jorge.blue.activities.UserInterfaz">
 
-    <TextView
+    <!--TextView
         android:id="@+id/IdControl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_marginTop="12dp"
-        android:text="control Bluetooth " />
+        android:layout_marginStart="0dp"
+        android:layout_marginLeft="0dp"
+        android:layout_marginTop="45dp"
+        android:gravity="center_horizontal"
+        android:text="Control Bluetooth"
+        android:textColor="@android:color/black"
+        android:textSize="18sp" />
 
     <Button
-        android:id="@+id/IdEncender"
+        android:id="@+id/IdReiniciar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
         android:layout_below="@+id/IdControl"
-        android:layout_marginTop="13dp"
-        android:text="Encender" />
-
-    <Button
-        android:id="@+id/IdApagar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/IdEncender"
-        android:layout_alignStart="@+id/IdEncender"
-        android:layout_below="@+id/IdEncender"
-        android:layout_marginTop="11dp"
-        android:text="Apagar" />
-
-    <TextView
-        android:id="@+id/IdBufferIn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        android:layout_below="@+id/IdApagar"
-        android:layout_marginTop="17dp"
-        android:text="Datos:" />
+        android:layout_alignParentLeft="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginLeft="0dp"
+        android:layout_marginTop="36dp"
+        android:text="Reiniciar" />
 
     <Button
         android:id="@+id/IdDesconectar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/IdReiniciar"
         android:layout_alignParentStart="true"
-        android:layout_below="@+id/IdBufferIn"
-        android:layout_marginTop="15dp"
-        android:text="Desconectar" />
+        android:layout_alignParentLeft="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginLeft="0dp"
+        android:layout_marginTop="7dp"
+        android:text="Desconectar" /-->
 
 </RelativeLayout>

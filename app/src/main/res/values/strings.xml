@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">blue</string>
+    <string name="reboot">Reinicio</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.example.jorge.blue.servicios;
 
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Intent;
 import android.database.Cursor;
@@ -8,28 +9,22 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
-
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Identifiers;
 import com.example.jorge.blue.utils.Utilities;
-
 import okhttp3.OkHttpClient;
-
-
 import org.json.JSONArray;
 import org.json.JSONObject;
-
 import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-
 import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
-
 
 public class SendingService extends Service {
     public static PowerManager.WakeLock wakeLock;
     private final IBinder mBinder = new LocalBinder();
     int st;
+    public static Thread thread;
     boolean responseId;
     private static OkHttpClient okHttpClient = new OkHttpClient();
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
@@ -45,9 +40,9 @@ public class SendingService extends Service {
         return mBinder;
     }
 
+    @SuppressLint("InvalidWakeLockTag")
     @Override
     public void onCreate() {
-
         //MANTENER ENCENDIDO EL CPU DEL CELULAR AL APAGAR LA PANTALLA
         //responseId = Utilities.getStationID(okHttpClient);
         setAPIKey(getApplicationContext());
@@ -59,11 +54,7 @@ public class SendingService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         responseId = Utilities.getStationID(okHttpClient);
-        sendPost();
-        Log.d("SS", "Servicio Envio ejecutado");
-
-
-
+        //sendPost();
         return Service.START_STICKY;
     }
 
@@ -73,24 +64,17 @@ public class SendingService extends Service {
         wakeLock.release();
     }
 
-
-    public JSONObject consultarMediciones()
-    {
+    public JSONObject consultarMediciones() {
         SQLiteDatabase db = conn.getReadableDatabase();
         Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.TABLA_MEDICION, null);
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
         //int c = 0;
-
-
         if(responseId) {
-
             try {
                 while (cursor.moveToNext()) {
                     JSONObject j = new JSONObject();
-
                     j.put("StationId", Identifiers.ID_STATION);
-
                     j.put("Timestamp", cursor.getString(0));
                     j.put("Type", cursor.getString(1));
                     j.put("Value", cursor.getString(2));
@@ -98,13 +82,10 @@ public class SendingService extends Service {
                     j.put("Location", cursor.getString(5));
                     j.put("SensorId", cursor.getString(4));
                     jsonArray.put(j);
-
-
                 }
-
                 y.put("data", jsonArray);
             } catch (Exception e) {
-                Log.d("DB", "no se pudo cargar datos desde la base");
+                //Log.d("DB", "no se pudo cargar datos desde la base");
             }
             conn.close();
             return y;
@@ -113,12 +94,9 @@ public class SendingService extends Service {
     }
 
     public void sendPost() {
-        Thread thread = new Thread(new Runnable() {
+        thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                Log.d("APIKEY", Identifiers.APIKey);
-                Log.d("APIKEY", Identifiers.ID_STATION);
-
                 try {
                     URL url = new URL(Identifiers.URL_SERVER);
                     HttpURLConnection connect = (HttpURLConnection) url.openConnection();
@@ -130,7 +108,7 @@ public class SendingService extends Service {
 
                     JSONObject jsonParam = consultarMediciones();
 
-                    Log.d("JSON", jsonParam.toString());
+                    //Log.d("JSON OBJECT", jsonParam.toString());
                     DataOutputStream os = new DataOutputStream(connect.getOutputStream());
                     os.writeBytes(jsonParam.toString());
 
@@ -139,20 +117,18 @@ public class SendingService extends Service {
                     //borrarBD();
 
                     st = connect.getResponseCode();
-                    Log.d("STATUS", String.valueOf(st));
-                    Log.d("MSG" , connect.getResponseMessage());
+                    //Log.d("STATUS", String.valueOf(st));
+                    //Log.d("MSG" , connect.getResponseMessage());
 
                     connect.disconnect();
-                    if (st == 200)
-                    {
+                    if (st == 200) {
                         borrarBD();
-                        Log.d("SS", "Data enviada y borrada");
+                        //Log.d("SENDING SERVICE", "DATOS ENVIADOS Y BORRADOS");
                     }
                     //Thread.sleep(10000);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Log.d("SS", "Error al  enviar datos");
-
+                    //Log.d("SENDING SERVICE", "ERROR AL ENVIAR LOS DATOS");
                 }
             }
         });
@@ -160,10 +136,9 @@ public class SendingService extends Service {
         thread.start();
     }
 
-    public void borrarBD()
-    {
+    public void borrarBD() {
         SQLiteDatabase db = conn.getReadableDatabase();
-        Log.d("DB", "DELETE FROM " + Utilities.TABLA_MEDICION);
+        //Log.d("DB", "DELETE FROM " + Utilities.TABLA_MEDICION);
         db.execSQL("DELETE FROM " + Utilities.TABLA_MEDICION);
         conn.close();
     }
