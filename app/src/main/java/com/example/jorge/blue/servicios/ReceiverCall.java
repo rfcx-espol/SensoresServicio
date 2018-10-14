@@ -40,6 +40,7 @@ public class ReceiverCall extends BroadcastReceiver {
                 }
                 onServiceReceiver = true;
             }
+            Log.i("RECEIVER CALL", "SERVICIOS REINICIADOS DESPUÉS DE REINICIAR EL DISPOSITIVO");
         }
     }
 

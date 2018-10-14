@@ -18,16 +18,15 @@ import org.json.JSONObject;
 import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 
 public class SendingService extends Service {
-    public static PowerManager.WakeLock wakeLock;
     private final IBinder mBinder = new LocalBinder();
-    int st;
+    private final String TAG = "SENDING SERVICE";
+    private boolean responseId;
+    private OkHttpClient okHttpClient;
+    private ConexionSQLiteHelper connection;
+    public static PowerManager.WakeLock wakeLock;
     public static Thread thread;
-    boolean responseId;
-    private static OkHttpClient okHttpClient = new OkHttpClient();
-    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
 
     public class LocalBinder extends Binder {
         public SendingService getService() {
@@ -43,9 +42,12 @@ public class SendingService extends Service {
     @SuppressLint("InvalidWakeLockTag")
     @Override
     public void onCreate() {
+        responseId = Utilities.getStationID(okHttpClient);
+        Identifiers.setAPIKey(getApplicationContext());
+        connection = new ConexionSQLiteHelper(getApplicationContext(), "medicion", null, 1);
+        okHttpClient = new OkHttpClient();
+
         //MANTENER ENCENDIDO EL CPU DEL CELULAR AL APAGAR LA PANTALLA
-        //responseId = Utilities.getStationID(okHttpClient);
-        setAPIKey(getApplicationContext());
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakelockTag");
         wakeLock.acquire();
@@ -55,42 +57,13 @@ public class SendingService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         responseId = Utilities.getStationID(okHttpClient);
         //sendPost();
-        return Service.START_STICKY;
+        return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         wakeLock.release();
-    }
-
-    public JSONObject consultarMediciones() {
-        SQLiteDatabase db = conn.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.TABLA_MEDICION, null);
-        JSONArray jsonArray = new JSONArray();
-        JSONObject y = new JSONObject();
-        //int c = 0;
-        if(responseId) {
-            try {
-                while (cursor.moveToNext()) {
-                    JSONObject j = new JSONObject();
-                    j.put("StationId", Identifiers.ID_STATION);
-                    j.put("Timestamp", cursor.getString(0));
-                    j.put("Type", cursor.getString(1));
-                    j.put("Value", cursor.getString(2));
-                    j.put("Units", cursor.getString(3));
-                    j.put("Location", cursor.getString(5));
-                    j.put("SensorId", cursor.getString(4));
-                    jsonArray.put(j);
-                }
-                y.put("data", jsonArray);
-            } catch (Exception e) {
-                //Log.d("DB", "no se pudo cargar datos desde la base");
-            }
-            conn.close();
-            return y;
-        }
-        return null;
     }
 
     public void sendPost() {
@@ -107,28 +80,26 @@ public class SendingService extends Service {
                     connect.setDoInput(true);
 
                     JSONObject jsonParam = consultarMediciones();
+                    Log.i(TAG, "DATOS A ENVIAR AL SERVIDOR: " + jsonParam.toString());
 
-                    //Log.d("JSON OBJECT", jsonParam.toString());
                     DataOutputStream os = new DataOutputStream(connect.getOutputStream());
                     os.writeBytes(jsonParam.toString());
-
                     os.flush();
                     os.close();
-                    //borrarBD();
 
-                    st = connect.getResponseCode();
-                    //Log.d("STATUS", String.valueOf(st));
+                    int st = connect.getResponseCode();
+                    Log.d(TAG, "CÓDIGO DE RESPUESTA DEL SERVIDOR: " + String.valueOf(st));
                     //Log.d("MSG" , connect.getResponseMessage());
 
                     connect.disconnect();
                     if (st == 200) {
                         borrarBD();
-                        //Log.d("SENDING SERVICE", "DATOS ENVIADOS Y BORRADOS");
+                        Log.i(TAG, "DATOS ENVIADOS Y BORRADOS");
                     }
                     //Thread.sleep(10000);
                 } catch (Exception e) {
+                    Log.e(TAG, "ERROR DE ENVÍO DE DATOS: " + e.getMessage());
                     e.printStackTrace();
-                    //Log.d("SENDING SERVICE", "ERROR AL ENVIAR LOS DATOS");
                 }
             }
         });
@@ -136,11 +107,41 @@ public class SendingService extends Service {
         thread.start();
     }
 
+    public JSONObject consultarMediciones() {
+        SQLiteDatabase db = connection.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + Identifiers.TABLA_MEDICION, null);
+        db.close();
+        JSONArray jsonArray = new JSONArray();
+        JSONObject y = new JSONObject();
+        if(responseId) {
+            try {
+                while (cursor.moveToNext()) {
+                    JSONObject j = new JSONObject();
+                    j.put("StationId", Identifiers.ID_STATION);
+                    j.put("Timestamp", cursor.getString(0));
+                    j.put("Type", cursor.getString(1));
+                    j.put("Value", cursor.getString(2));
+                    j.put("Units", cursor.getString(3));
+                    j.put("Location", cursor.getString(5));
+                    j.put("SensorId", cursor.getString(4));
+                    jsonArray.put(j);
+                }
+                y.put("data", jsonArray);
+            } catch (Exception e) {
+                Log.e(TAG, "ERROR AL CARGAR DATOS DE LA BASE DEL DISPOSITIV: " + e.getMessage());
+                e.printStackTrace();
+            }
+            connection.close();
+            return y;
+        }
+        return null;
+    }
+
     public void borrarBD() {
-        SQLiteDatabase db = conn.getReadableDatabase();
-        //Log.d("DB", "DELETE FROM " + Utilities.TABLA_MEDICION);
-        db.execSQL("DELETE FROM " + Utilities.TABLA_MEDICION);
-        conn.close();
+        SQLiteDatabase db = connection.getReadableDatabase();
+        db.execSQL("DELETE FROM " + Identifiers.TABLA_MEDICION);
+        connection.close();
+        Log.i(TAG, "DATOS BORRADOS DE LA BASE: " + Identifiers.TABLA_MEDICION);
     }
 
 }

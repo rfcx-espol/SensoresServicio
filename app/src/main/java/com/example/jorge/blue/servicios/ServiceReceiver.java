@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -12,29 +13,29 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
-import com.example.jorge.blue.utils.Utilities;
+import com.example.jorge.blue.utils.Identifiers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
-import static com.example.jorge.blue.utils.Identifiers.BT_address;
-import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 
 public class ServiceReceiver extends Service{
     private final IBinder mBinder = new LocalBinder();
     private final int handlerState = 0;
     private static final String TAG = "SERVICE RECEIVER";
-    private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private BluetoothAdapter btAdapter = null;
-    private BluetoothSocket btSocket = null;
+    private BluetoothAdapter btAdapter;
+    public static BluetoothSocket btSocket;
     private StringBuilder DataStringIN = new StringBuilder();
-    public ConnectedThread serviceReceiverThread;
-    private ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
+    private ConexionSQLiteHelper connection;
+    //public ConnectThread connectThread;
+    public ConnectedThread connectedThread;
+    //public AcceptThread acceptThread;
     public static PowerManager.WakeLock wakeLock;
     public static Handler bluetoothIn;
 
@@ -44,7 +45,6 @@ public class ServiceReceiver extends Service{
         }
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
@@ -53,8 +53,8 @@ public class ServiceReceiver extends Service{
     @SuppressLint("InvalidWakeLockTag")
     @Override
     public void onCreate(){
-        setAPIKey(getApplicationContext());
-
+        Identifiers.setAPIKey(getApplicationContext());
+        connection = new ConexionSQLiteHelper(getApplicationContext(), "medicion", null, 1);
         btAdapter = BluetoothAdapter.getDefaultAdapter();
         if(btAdapter == null) {
             Log.i(TAG, "ESTE DISPOSITIVO NO SOPORTA BLUETOOTH");
@@ -63,7 +63,7 @@ public class ServiceReceiver extends Service{
         Set<BluetoothDevice> pairedDevices = btAdapter.getBondedDevices();
         if (pairedDevices.size() > 0) {
             for (BluetoothDevice device : pairedDevices) {
-                BT_address = device.getAddress();
+                Identifiers.BT_address = device.getAddress();
                 Log.i(TAG, "ESTÁ EMPAREJADO");
             }
         }
@@ -102,30 +102,40 @@ public class ServiceReceiver extends Service{
             }
         };
 
-        BluetoothDevice device = btAdapter.getRemoteDevice(BT_address);
+        BluetoothDevice btDevice = btAdapter.getRemoteDevice(Identifiers.BT_address);
 
-        while (true) {
+        while(true) {
             try {
-                btSocket = device.createRfcommSocketToServiceRecord(BTMODULEUUID);
-            } catch (IOException e) {
-                Log.e(TAG, "ERROR DE CREACIÓN DEL SOCKET");
+                final Method m = btDevice.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[] { UUID.class });
+                btSocket = (BluetoothSocket) m.invoke(btDevice, Identifiers.BTMODULEUUID);
+                //btSocket = btDevice.createRfcommSocketToServiceRecord(Identifiers.BTMODULEUUID);
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
             }
             // Establece la conexión con el socket Bluetooth.
             try {
+                btAdapter.cancelDiscovery();
                 btSocket.connect();
                 break;
             } catch (IOException e) {
-                Log.e(TAG, "ERROR DE CONEXIÓN DEL SOCKET");
+                Log.e(TAG, "ERROR DE CONEXIÓN DEL SOCKET: " + e.getMessage());
+                e.printStackTrace();
                 try {
                     btSocket.close();
                     Log.i(TAG, "SOCKET CERRADO EXITOSAMENTE");
                 } catch (IOException e2) {
-                    Log.e(TAG, "ERROR AL CERRAR EL SOCKET");
+                    Log.e(TAG, "ERROR AL CERRAR EL SOCKET: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
-        serviceReceiverThread = new ConnectedThread(btSocket);
-        serviceReceiverThread.start();
+
+        connectedThread = new ConnectedThread(btSocket);
+        connectedThread.start();
 
         return START_STICKY;
     }
@@ -136,10 +146,119 @@ public class ServiceReceiver extends Service{
             try {
                 btSocket.close();
             } catch (IOException e) {
-                Log.e(TAG, "ERROR AL CERRAR EL SOCKET AL DESTRUIR EL SERVICIO");
+                Log.e(TAG, "ERROR AL CERRAR EL SOCKET: " + e.getMessage());
+                e.printStackTrace();
             }
         }
         wakeLock.release();
+    }
+
+    private class AcceptThread extends Thread {
+        private final BluetoothServerSocket mmServerSocket;
+
+        public AcceptThread() {
+            // Use a temporary object that is later assigned to mmServerSocket,
+            // because mmServerSocket is final
+            BluetoothServerSocket tmp = null;
+            try {
+                // MY_UUID is the app's UUID string, also used by the client code
+                tmp = btAdapter.listenUsingRfcommWithServiceRecord("blue", Identifiers.BTMODULEUUID);
+            } catch (IOException e) {
+                Log.e(TAG, "ERROR: " + e.getMessage());
+                e.printStackTrace();
+            }
+            mmServerSocket = tmp;
+        }
+
+        public void run() {
+            btSocket = null;
+
+            // Keep listening until exception occurs or a socket is returned
+            while (true) {
+
+                try {
+                    Log.e(TAG, "ESPERANDO");
+                    btSocket = mmServerSocket.accept();
+
+                } catch (IOException e) {
+                    Log.e(TAG, "ERROR AL ACEPTAR EL SOCKET DESDE EL SERVIDOR: " + e.getMessage());
+                    e.printStackTrace();
+                    break;
+                }
+                // If a connection was accepted
+                if (btSocket != null) {
+                    // Do work to manage the connection (in a separate thread)
+                    Log.e(TAG, "SE CONECTÓ");
+                    connectedThread = new ConnectedThread(btSocket);
+                    connectedThread.start();
+                    try {
+                        mmServerSocket.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "ERROR AL CERRAR EL SOCKET DESDE EL SERVIDOR: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                    break;
+                }
+            }
+        }
+
+        /** Will cancel the listening socket, and cause the thread to finish */
+        public void cancel() {
+            try {
+                mmServerSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "ERROR AL CANCELAR EL SOCKET DESDE EL SERVIDOR: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private class ConnectThread extends Thread {
+        private final BluetoothSocket mmSocket;
+
+        public ConnectThread(BluetoothDevice btDevice) {
+            // Get a BluetoothSocket to connect with the given BluetoothDevice
+            try {
+                btSocket = btDevice.createRfcommSocketToServiceRecord(Identifiers.BTMODULEUUID);
+            } catch (IOException e) {
+                Log.e(TAG, "ERROR DE CREACIÓN DEL SOCKET: " + e.getMessage());
+                e.printStackTrace();
+            }
+            mmSocket = btSocket;
+        }
+
+        public void run() {
+
+            try {
+                // Connect the device through the socket. This will block
+                // until it succeeds or throws an exception
+                btAdapter.cancelDiscovery();
+                mmSocket.connect();
+            } catch (IOException connectException) {
+                Log.e(TAG, "ERROR DE CONEXIÓN: " + connectException.getMessage());
+                connectException.printStackTrace();
+                try {
+                    mmSocket.close();
+                    Log.i(TAG, "SOCKET CERRADO EXITOSAMENTE");
+                } catch (IOException closeException) {
+                    Log.e(TAG, "ERROR AL CERRAR EL SOCKET: " + closeException.getMessage());
+                    closeException.printStackTrace();
+                }
+            }
+
+            connectedThread = new ConnectedThread(btSocket);
+            connectedThread.start();
+        }
+
+        //Will cancel an in-progress connection, and close the socket
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "ERROR AL CERRAR EL SOCKET: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     //Crea la clase que permite crear el evento de conexion
@@ -155,7 +274,8 @@ public class ServiceReceiver extends Service{
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
             } catch (IOException e) {
-                Log.e(TAG, "ERROR AL OBTENER LOS STREAMS");
+                Log.e(TAG, "ERROR AL OBTENER LOS STREAMS: " + e.getMessage());
+                e.printStackTrace();
             }
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
@@ -173,6 +293,8 @@ public class ServiceReceiver extends Service{
                     // Envia los datos obtenidos hacia el evento via handler
                     bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
                 } catch (IOException e) {
+                    Log.e(TAG, "ERROR AL OBTENER EL MENSAJE DEL BLUETOOTH: " + e.getMessage());
+                    e.printStackTrace();
                     break;
                 }
             }
@@ -185,6 +307,8 @@ public class ServiceReceiver extends Service{
             } catch (IOException e) {
                 //si no es posible enviar datos se cierra la conexión
                 Toast.makeText(getBaseContext(), "NO SE PUEDE ENVIAR DATOS", Toast.LENGTH_LONG).show();
+                Log.e(TAG, "ERROR AL ENVIAR LOS DATOS: " + e.getMessage());
+                e.printStackTrace();
             }
         }
 
@@ -192,15 +316,15 @@ public class ServiceReceiver extends Service{
 
     //GUARDA LOS VALORES RECIBIDOS EN LA BASE DE DATOS DEL DISPOSITIVO
     public void registrarMedicion(String ts, String type, String value, String unit, String location, String id) {
-        SQLiteDatabase db = conn.getWritableDatabase();
+        SQLiteDatabase db = connection.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put(Utilities.CAMPO_TIMESTAMP, ts);
-        values.put(Utilities.CAMPO_TYPE, type);
-        values.put(Utilities.CAMPO_VALUE, value);
-        values.put(Utilities.CAMPO_UNIT, unit);
-        values.put(Utilities.CAMPO_LOCATION, location);
-        values.put(Utilities.CAMPO_SENSORID, id);
-        long result = db.insert(Utilities.TABLA_MEDICION, Utilities.CAMPO_SENSORID, values);
+        values.put(Identifiers.CAMPO_TIMESTAMP, ts);
+        values.put(Identifiers.CAMPO_TYPE, type);
+        values.put(Identifiers.CAMPO_VALUE, value);
+        values.put(Identifiers.CAMPO_UNIT, unit);
+        values.put(Identifiers.CAMPO_LOCATION, location);
+        values.put(Identifiers.CAMPO_SENSORID, id);
+        long result = db.insert(Identifiers.TABLA_MEDICION, Identifiers.CAMPO_SENSORID, values);
         Log.i(TAG, "DATOS: TIMESTAMP: " + ts + ", VALOR: " + value + ", UNIDAD: " + unit);
         Log.i(TAG, "RESULTADO: " + result);
         db.close();

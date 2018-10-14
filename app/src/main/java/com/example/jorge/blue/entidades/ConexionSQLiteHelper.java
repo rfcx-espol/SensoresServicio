@@ -3,7 +3,7 @@ package com.example.jorge.blue.entidades;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import com.example.jorge.blue.utils.Utilities;
+import com.example.jorge.blue.utils.Identifiers;
 
 public class ConexionSQLiteHelper extends SQLiteOpenHelper {
 
@@ -13,7 +13,7 @@ public class ConexionSQLiteHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL(Utilities.CREAR_TABLA_MEDICION);
+        db.execSQL(Identifiers.CREAR_TABLA_MEDICION);
     }
 
     @Override
