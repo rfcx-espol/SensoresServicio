@@ -12,13 +12,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 import com.example.jorge.blue.R;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
-import static com.example.jorge.blue.utils.Identifiers.delta_time;
 import static com.example.jorge.blue.utils.Identifiers.onSendingService;
 import static com.example.jorge.blue.utils.Identifiers.onServiceReceiver;
 import static com.example.jorge.blue.utils.Identifiers.alarmManager;
@@ -26,13 +23,11 @@ import static com.example.jorge.blue.utils.Identifiers.pendingIntentSending;
 import static com.example.jorge.blue.utils.Identifiers.pendingIntentReceiver;
 import static com.example.jorge.blue.utils.Identifiers.callSending;
 import static com.example.jorge.blue.utils.Identifiers.callReceiver;
-import java.io.IOException;
 import java.util.UUID;
 
 public class UserInterfaz extends AppCompatActivity {
-    private int c = 20;
-    private BluetoothSocket btSocket = null;
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final String TAG = "USER INTERFAZ";
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -84,21 +79,21 @@ public class UserInterfaz extends AppCompatActivity {
                     new Intent(this, ServiceReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
             alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             if (alarmManager != null) {
-                alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
-                        delta_time, pendingIntentReceiver);
+                alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
+                        pendingIntentReceiver);
             }
             onServiceReceiver = true;
         }
-        if(!onSendingService) {
+        /*if(!onSendingService) {
             pendingIntentSending = PendingIntent.getService(getApplicationContext(), 0,
                     new Intent(this, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
             alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             if (alarmManager != null) {
-                alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
-                        delta_time, pendingIntentSending);
+                alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
+                        pendingIntentSending);
             }
             onSendingService = true;
-        }
+        }*/
     }
 
     //REINICIAR LAS ALARMAS
@@ -125,17 +120,7 @@ public class UserInterfaz extends AppCompatActivity {
         }
         createAlarms();
         Toast.makeText(getApplicationContext(), "SERVICIOS REINICIADOS CORRECTAMENTE", Toast.LENGTH_LONG).show();
-        Log.i("USER_INTERFAZ", "SERVICIOS REINICIADOS CORRECTAMENTE");
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
+        Log.i(TAG, "SERVICIOS REINICIADOS CORRECTAMENTE");
     }
 
     @Override
@@ -146,6 +131,16 @@ public class UserInterfaz extends AppCompatActivity {
                 break;
         }
         return true;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
     }
 
 }
