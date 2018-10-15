@@ -14,8 +14,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 import com.example.jorge.blue.R;
+import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
+import com.example.jorge.blue.utils.Identifiers;
 
 import java.io.IOException;
 
@@ -50,6 +52,7 @@ public class UserInterfaz extends AppCompatActivity {
 
     //CREAR LAS ALARMAS PARA ENVIAR Y RECIBIR DATOS
     private void createAlarms() {
+        Identifiers.connection = new ConexionSQLiteHelper(getApplicationContext(), "medicion", null, 1);
         if(!onServiceReceiver) {
             pendingIntentReceiver = PendingIntent.getService(getApplicationContext(), 0,
                     new Intent(this, ServiceReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -60,7 +63,7 @@ public class UserInterfaz extends AppCompatActivity {
             }
             onServiceReceiver = true;
         }
-        /*if(!onSendingService) {
+        if(!onSendingService) {
             pendingIntentSending = PendingIntent.getService(getApplicationContext(), 0,
                     new Intent(this, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
             alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -69,7 +72,7 @@ public class UserInterfaz extends AppCompatActivity {
                         pendingIntentSending);
             }
             onSendingService = true;
-        }*/
+        }
     }
 
     //REINICIAR LAS ALARMAS
@@ -107,6 +110,10 @@ public class UserInterfaz extends AppCompatActivity {
 
     public void disconnect() {
         if(onSendingService || onServiceReceiver) {
+            if(callSending != null)
+                callSending.cancel();
+            if(callReceiver != null)
+                callReceiver.cancel();
             alarmManager.cancel(pendingIntentReceiver);
             alarmManager.cancel(pendingIntentSending);
             stopService(new Intent(getApplicationContext(), ServiceReceiver.class));

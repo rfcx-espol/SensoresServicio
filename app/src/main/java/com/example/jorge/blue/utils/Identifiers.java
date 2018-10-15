@@ -6,6 +6,9 @@ import okhttp3.Call;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.provider.Settings;
+
+import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
+
 import java.util.UUID;
 
 public class Identifiers {
@@ -21,6 +24,7 @@ public class Identifiers {
     public static String ID_STATION;
     public static UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     public static String BT_address = "";
+    public static ConexionSQLiteHelper connection;
     public static final String URL_SERVER ="http://200.126.14.250/api/Data";
     public static final String TABLA_MEDICION = "medicion";
     public static final String CAMPO_TIMESTAMP = "timestamp";

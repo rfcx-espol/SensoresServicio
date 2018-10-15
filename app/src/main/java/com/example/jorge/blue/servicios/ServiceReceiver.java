@@ -25,6 +25,8 @@ import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 
+import static android.support.v4.app.ActivityCompat.startActivityForResult;
+
 public class ServiceReceiver extends Service{
     private final IBinder mBinder = new LocalBinder();
     private final int handlerState = 0;
@@ -32,7 +34,6 @@ public class ServiceReceiver extends Service{
     private BluetoothAdapter btAdapter;
     public static BluetoothSocket btSocket;
     private StringBuilder DataStringIN = new StringBuilder();
-    private ConexionSQLiteHelper connection;
     //public ConnectThread connectThread;
     public ConnectedThread connectedThread;
     //public AcceptThread acceptThread;
@@ -54,8 +55,8 @@ public class ServiceReceiver extends Service{
     @Override
     public void onCreate(){
         Identifiers.setAPIKey(getApplicationContext());
-        connection = new ConexionSQLiteHelper(getApplicationContext(), "medicion", null, 1);
         btAdapter = BluetoothAdapter.getDefaultAdapter();
+        Identifiers.connection = new ConexionSQLiteHelper(this, "medicion", null, 1);
         if(btAdapter == null) {
             Log.i(TAG, "ESTE DISPOSITIVO NO SOPORTA BLUETOOTH");
         }
@@ -101,6 +102,20 @@ public class ServiceReceiver extends Service{
                 }
             }
         };
+
+        while(true) {
+            if(!btAdapter.isEnabled()) {
+                Log.e(TAG, "EL BLUETOOTH NO ESTÁ ENCENDIDO. ESPERANDO");
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "ERROR EN LA ESPERA DEL ENCENDIDO DEL BLUETOOTH");
+                    e.printStackTrace();
+                }
+            } else {
+                break;
+            }
+        }
 
         BluetoothDevice btDevice = btAdapter.getRemoteDevice(Identifiers.BT_address);
 
@@ -316,18 +331,31 @@ public class ServiceReceiver extends Service{
 
     //GUARDA LOS VALORES RECIBIDOS EN LA BASE DE DATOS DEL DISPOSITIVO
     public void registrarMedicion(String ts, String type, String value, String unit, String location, String id) {
-        SQLiteDatabase db = connection.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(Identifiers.CAMPO_TIMESTAMP, ts);
-        values.put(Identifiers.CAMPO_TYPE, type);
-        values.put(Identifiers.CAMPO_VALUE, value);
-        values.put(Identifiers.CAMPO_UNIT, unit);
-        values.put(Identifiers.CAMPO_LOCATION, location);
-        values.put(Identifiers.CAMPO_SENSORID, id);
-        long result = db.insert(Identifiers.TABLA_MEDICION, Identifiers.CAMPO_SENSORID, values);
-        Log.i(TAG, "DATOS: TIMESTAMP: " + ts + ", VALOR: " + value + ", UNIDAD: " + unit);
-        Log.i(TAG, "RESULTADO: " + result);
-        db.close();
+        SQLiteDatabase db = Identifiers.connection.getWritableDatabase();
+        /*while(true) {
+            Log.e(TAG, "LA BASE ESTÁ ABIERTA: " + db.isOpen());
+            if(!db.isOpen()) {*/
+                ContentValues values = new ContentValues();
+                values.put(Identifiers.CAMPO_TIMESTAMP, ts);
+                values.put(Identifiers.CAMPO_TYPE, type);
+                values.put(Identifiers.CAMPO_VALUE, value);
+                values.put(Identifiers.CAMPO_UNIT, unit);
+                values.put(Identifiers.CAMPO_LOCATION, location);
+                values.put(Identifiers.CAMPO_SENSORID, id);
+                long result = db.insert(Identifiers.TABLA_MEDICION, Identifiers.CAMPO_SENSORID, values);
+                Log.i(TAG, "DATOS: TIMESTAMP: " + ts + ", VALOR: " + value + ", UNIDAD: " + unit);
+                Log.i(TAG, "RESULTADO: " + result);
+                db.close();
+                Identifiers.connection.close();
+        /*        break;
+            }
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "ERROR AL GUARDAR, LA BASE ESTÁ OCUPADA");
+                e.printStackTrace();
+            }
+        }*/
     }
 
 }
