@@ -63,7 +63,7 @@ public class UserInterfaz extends AppCompatActivity {
             }
             onServiceReceiver = true;
         }
-        if(!onSendingService) {
+        /*if(!onSendingService) {
             pendingIntentSending = PendingIntent.getService(getApplicationContext(), 0,
                     new Intent(this, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
             alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -72,7 +72,7 @@ public class UserInterfaz extends AppCompatActivity {
                         pendingIntentSending);
             }
             onSendingService = true;
-        }
+        }*/
     }
 
     //REINICIAR LAS ALARMAS

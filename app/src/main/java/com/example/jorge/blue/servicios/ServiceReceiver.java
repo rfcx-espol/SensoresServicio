@@ -17,6 +17,11 @@ import android.util.Log;
 import android.widget.Toast;
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Identifiers;
+import com.example.jorge.blue.utils.Utilities;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,6 +29,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import static android.support.v4.app.ActivityCompat.startActivityForResult;
 
@@ -331,31 +343,63 @@ public class ServiceReceiver extends Service{
 
     //GUARDA LOS VALORES RECIBIDOS EN LA BASE DE DATOS DEL DISPOSITIVO
     public void registrarMedicion(String ts, String type, String value, String unit, String location, String id) {
-        SQLiteDatabase db = Identifiers.connection.getWritableDatabase();
-        /*while(true) {
-            Log.e(TAG, "LA BASE ESTÁ ABIERTA: " + db.isOpen());
-            if(!db.isOpen()) {*/
-                ContentValues values = new ContentValues();
-                values.put(Identifiers.CAMPO_TIMESTAMP, ts);
-                values.put(Identifiers.CAMPO_TYPE, type);
-                values.put(Identifiers.CAMPO_VALUE, value);
-                values.put(Identifiers.CAMPO_UNIT, unit);
-                values.put(Identifiers.CAMPO_LOCATION, location);
-                values.put(Identifiers.CAMPO_SENSORID, id);
-                long result = db.insert(Identifiers.TABLA_MEDICION, Identifiers.CAMPO_SENSORID, values);
-                Log.i(TAG, "DATOS: TIMESTAMP: " + ts + ", VALOR: " + value + ", UNIDAD: " + unit);
-                Log.i(TAG, "RESULTADO: " + result);
-                db.close();
-                Identifiers.connection.close();
-        /*        break;
-            }
+        /*SQLiteDatabase db = Identifiers.connection.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(Identifiers.CAMPO_TIMESTAMP, ts);
+        values.put(Identifiers.CAMPO_TYPE, type);
+        values.put(Identifiers.CAMPO_VALUE, value);
+        values.put(Identifiers.CAMPO_UNIT, unit);
+        values.put(Identifiers.CAMPO_LOCATION, location);
+        values.put(Identifiers.CAMPO_SENSORID, id);
+        long result = db.insert(Identifiers.TABLA_MEDICION, Identifiers.CAMPO_SENSORID, values);
+        Log.i(TAG, "DATOS: TIMESTAMP: " + ts + ", VALOR: " + value + ", UNIDAD: " + unit);
+        Log.i(TAG, "RESULTADO: " + result);
+        db.close();
+        Identifiers.connection.close();*/
+
+        OkHttpClient.Builder builder = new OkHttpClient.Builder();
+        builder.connectTimeout(300, TimeUnit.SECONDS);
+        builder.readTimeout(300, TimeUnit.SECONDS);
+        builder.writeTimeout(300, TimeUnit.SECONDS);
+        OkHttpClient okHttpClient = builder.build();
+
+        boolean responseId = Utilities.getStationID(okHttpClient);
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        JSONArray jsonArray = new JSONArray();
+        JSONObject y = new JSONObject();
+        if(responseId) {
             try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "ERROR AL GUARDAR, LA BASE ESTÁ OCUPADA");
+                JSONObject j = new JSONObject();
+                j.put("StationId", Identifiers.ID_STATION);
+                j.put("Timestamp", ts);
+                j.put("Type", type);
+                j.put("Value", value);
+                j.put("Units", unit);
+                j.put("Location", location);
+                j.put("SensorId", id);
+                jsonArray.put(j);
+                y.put("data", jsonArray);
+            } catch (Exception e) {
+                Log.e(TAG, "ERROR AL CARGAR DATOS DE LA BASE DEL DISPOSITIVO: " + e.getMessage());
                 e.printStackTrace();
             }
-        }*/
+            Identifiers.connection.close();
+        }
+        Log.i(TAG, "DATOS A ENVIAR AL SERVIDOR: " + y.toString());
+        RequestBody body = RequestBody.create(JSON, String.valueOf(y));
+        Request request = new Request.Builder()
+                .url(Identifiers.URL_SERVER)
+                .post(body)
+                .build();
+        Identifiers.callSending = okHttpClient.newCall(request);
+        Log.i(TAG, "DATOS BORRADOS Y ENVIÁNDOSE");
+        try {
+            Identifiers.callSending.execute();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
     }
 
 }

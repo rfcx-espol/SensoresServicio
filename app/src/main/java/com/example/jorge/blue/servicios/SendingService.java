@@ -166,9 +166,6 @@ public class SendingService extends Service {
 
     public JSONObject consultarMediciones() {
         SQLiteDatabase db = Identifiers.connection.getReadableDatabase();
-        /*while(true) {
-            Log.e(TAG, "LA BASE ESTÁ ABIERTA 1: " + db.isOpen());
-            if(!db.isOpen()) {*/
                 Cursor cursor = db.rawQuery("SELECT * FROM " + Identifiers.TABLA_MEDICION, null);
                 JSONArray jsonArray = new JSONArray();
                 JSONObject y = new JSONObject();
@@ -194,35 +191,14 @@ public class SendingService extends Service {
                     Identifiers.connection.close();
                     return y;
                 }
-                /*break;
-            }
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "ERROR AL GUARDAR, LA BASE ESTÁ OCUPADA");
-                e.printStackTrace();
-            }
-        }*/
         return null;
     }
 
     public void borrarBD() {
         SQLiteDatabase db = Identifiers.connection.getReadableDatabase();
-        /*while(true) {
-            Log.e(TAG, "LA BASE ESTÁ ABIERTA 2: " + db.isOpen());
-            if (!db.isOpen()) {*/
-                db.execSQL("DELETE FROM " + Identifiers.TABLA_MEDICION);
-                Identifiers.connection.close();
-                Log.i(TAG, "DATOS BORRADOS DE LA BASE: " + Identifiers.TABLA_MEDICION);
-                /*break;
-            }
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "ERROR AL GUARDAR, LA BASE ESTÁ OCUPADA");
-                e.printStackTrace();
-            }
-        }*/
+        db.execSQL("DELETE FROM " + Identifiers.TABLA_MEDICION);
+        Identifiers.connection.close();
+        Log.i(TAG, "DATOS BORRADOS DE LA BASE: " + Identifiers.TABLA_MEDICION);
     }
 
 }
