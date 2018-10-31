@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 19
-    buildToolsVersion '21.0.0'
+    buildToolsVersion '28.0.2'
     defaultConfig {
         applicationId "com.example.jorge.blue"
         minSdkVersion 10
@@ -26,13 +26,18 @@ android {
 allprojects {
     repositories {
         jcenter()
+        maven {
+            url 'https://maven.google.com/'
+            name 'Google'
+        }
         maven { url "https://jitpack.io" }
     }
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.squareup.okhttp3:okhttp:3.10.0'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+    implementation files('libs/android-google-usb-api10.jar')
 }
 
 
@@ -40,6 +45,10 @@ buildscript {
 
     repositories {
         jcenter()
+        maven {
+            url 'https://maven.google.com/'
+            name 'Google'
+        }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.2.2'

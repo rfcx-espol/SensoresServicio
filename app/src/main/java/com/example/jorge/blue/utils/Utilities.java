@@ -57,6 +57,8 @@ public class Utilities {
             if(!threadRunning){
                 return false;
             }
+
+
             Response response = call.execute();
             if(response.code() == 200){
                 String resp = response.body().string();

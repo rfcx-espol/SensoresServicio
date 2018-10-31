@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.StrictMode;
 import android.util.Log;
 
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
@@ -59,11 +60,18 @@ public class SendingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        responseId = Utilities.getStationID(okHttpClient);
-        //sendPost();
+        int SDK_INT = android.os.Build.VERSION.SDK_INT;
+        if (SDK_INT > 8)
+        {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder()
+                    .permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+            //your codes here
+            responseId = Utilities.getStationID(okHttpClient);
+        }
+
+        sendPost();
         Log.d("SS", "Servicio Envio ejecutado");
-
-
 
         return Service.START_STICKY;
     }

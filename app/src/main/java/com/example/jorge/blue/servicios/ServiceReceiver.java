@@ -160,12 +160,12 @@ public class ServiceReceiver extends Service{
     {
 
 
-//        mManager = UsbManager.getInstance(this);
-//        mPermissionIntent = PendingIntent.getBroadcast(this, 0,
-//                new Intent(ACTION_USB_PERMISSION), 0);
-//        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-//        this.registerReceiver(mUsbReceiver, filter);
-//        setup(this.getApplicationContext());
+       mManager = UsbManager.getInstance(this);
+        mPermissionIntent = PendingIntent.getBroadcast(this, 0,
+                new Intent(ACTION_USB_PERMISSION), 0);
+          IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+          this.registerReceiver(mUsbReceiver, filter);
+          setup(this.getApplicationContext());
 //
 //        usbHandler = new Handler() {
 //            public void handleMessage(android.os.Message msg) {
@@ -201,7 +201,7 @@ public class ServiceReceiver extends Service{
     public void setup(Context context)
     {
 
-
+        Log.d("MESSAGE", "SETUP");
         UsbAccessory[] accessoryList = mManager.getAccessoryList();
 
         UsbAccessory accessory = (accessoryList == null ? null : accessoryList[0]);
