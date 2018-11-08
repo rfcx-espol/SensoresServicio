@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">blue</string>
+    <string name="app_name">Data Sender</string>
+    <string name="serial_port">Synchronous Serial Port</string>
 </resources>
