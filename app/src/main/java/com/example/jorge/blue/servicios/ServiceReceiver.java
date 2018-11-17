@@ -6,22 +6,36 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Binder;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.util.Base64;
 import android.util.Log;
+import android.widget.Toast;
 
 
 import com.felhr.usbserial.CDCSerialDevice;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.XML;
 
 public class ServiceReceiver extends Service {
 
@@ -51,7 +65,12 @@ public class ServiceReceiver extends Service {
     private UsbDevice device;
     private UsbDeviceConnection connection;
     private UsbSerialDevice serialPort;
+    private StringBuilder dataBuffer = new StringBuilder();
+    private static int PRETTY_PRINT_INDENT_FACTOR = 4;
     private String TAG = "USB-RECEIVER";
+    byte[] imageBuffer = new byte[15360];  // 15KB reserved
+    private FileOutputStream ImageOutStream;
+    private static int  fileIndex = 0;
 
     private boolean serialPortConnected;
     /*
@@ -250,6 +269,7 @@ public class ServiceReceiver extends Service {
             if (serialPort != null) {
                 if (serialPort.syncOpen()) {
                     serialPortConnected = true;
+                    fileIndex = 0;
                     serialPort.setBaudRate(BAUD_RATE);
                     serialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     serialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
@@ -294,18 +314,126 @@ public class ServiceReceiver extends Service {
         }
     }
 
+    public Bitmap StringToBitMap(String encodedString){
+        try {
+            byte [] encodeByte=Base64.decode(encodedString,Base64.DEFAULT);
+            Bitmap bitmap=BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
+            return bitmap;
+        } catch(Exception e) {
+            e.getMessage();
+            return null;
+        }
+    }
+
+    public boolean checkSDCard()
+    {
+        if(android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public boolean SaveImagetoSD()
+    {
+        Log.i(TAG, "SaveImagetoSD ");
+
+        String extStorage = Environment.getExternalStorageDirectory().toString();
+        File file = new File(extStorage, "motoduino.jpg");
+        if (checkSDCard() == false)
+            return false;
+
+        try {
+            ImageOutStream = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        try {
+            ImageOutStream.write(imageBuffer, 0, fileIndex);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        Log.i(TAG, "Save file size = "+fileIndex);
+        return true;
+    }
+
     private class ReadThread extends Thread {
         @Override
         public void run() {
+            boolean valid = true;
+
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+
             while(true){
-                byte[] buffer = new byte[100];
+                byte[] buffer = new byte[1024];
                 int n = serialPort.syncRead(buffer, 0);
+               // Log.d(TAG, "Length:"+n);
                 if(n > 0) {
                     byte[] received = new byte[n];
                     System.arraycopy(buffer, 0, received, 0, n);
                     String receivedStr = new String(received);
-                    Log.d(TAG,":"+receivedStr);
+
                     mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
+                    //dataBuffer.append(receivedStr);
+
+                    try {
+
+                        for(int i=0; i<n; i++) {
+                            imageBuffer[fileIndex] = buffer[i];
+                            fileIndex++;
+
+                            Log.d(TAG, "buffer: "+buffer[i]);
+
+                            if (buffer[i] == (byte) 0xD9) {
+                                if(buffer[i-1] == (byte)0xFF) {
+                                    if (SaveImagetoSD() == true) {
+                                        Log.d(TAG, "Image saved");
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+
+//                    int endOfLineIndex = dataBuffer.indexOf("#");
+//                    if (endOfLineIndex > 0) {
+//                        valid ++;
+//                        if(valid > 1){
+//                            Log.d(TAG,"index:"+endOfLineIndex);
+//                            String data = dataBuffer.substring(0, endOfLineIndex);
+//
+//                            File photo=new File(Environment.getExternalStorageDirectory(), "photo"+System.currentTimeMillis()+".JPG");
+//
+//                            if (photo.exists()) {
+//                                photo.delete();
+//                            }
+//
+//                            try {
+//                                FileOutputStream fos=new FileOutputStream(photo.getPath());
+//                                byte[] dataByte = data.getBytes("UTF-32");
+//                                String base64 = Base64.encodeToString(dataByte, Base64.DEFAULT);
+//                                Log.d(TAG,"data:"+base64);
+//                                fos.write(dataByte);
+//                                fos.close();
+//                            }
+//                            catch (java.io.IOException e) {
+//                                Log.e(TAG, "PHOTO EXCEPTION ", e);
+//                            }
+//                        }
+
+                    //dataBuffer.delete(0, dataBuffer.length());
+               //     }
+
                 }
             }
         }
