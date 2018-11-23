@@ -70,7 +70,7 @@ public class SendingService extends Service {
             responseId = Utilities.getStationID(okHttpClient);
         }
 
-        sendPost();
+        //sendPost();
         Log.d("SS", "Servicio Envio ejecutado");
 
         return Service.START_STICKY;

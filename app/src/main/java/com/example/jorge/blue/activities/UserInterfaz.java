@@ -6,7 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.Image;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -16,12 +21,14 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.example.jorge.blue.R;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.Set;
 
@@ -57,6 +64,7 @@ public class UserInterfaz extends AppCompatActivity {
     private EditText editText;
     private CheckBox box9600, box38400;
     private MyHandler mHandler;
+    public ImageView camImageView;
     private final ServiceConnection usbConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName arg0, IBinder arg1) {
@@ -78,6 +86,7 @@ public class UserInterfaz extends AppCompatActivity {
         mHandler = new MyHandler(this);
 
         display = (TextView) findViewById(R.id.textView1);
+        camImageView = (ImageView) findViewById(R.id.imageView);
         editText = (EditText) findViewById(R.id.editText1);
         Button sendButton = (Button) findViewById(R.id.buttonSend);
         sendButton.setOnClickListener(new View.OnClickListener() {
@@ -166,6 +175,7 @@ public class UserInterfaz extends AppCompatActivity {
         registerReceiver(mUsbReceiver, filter);
     }
 
+
     /*
      * This handler will be passed to UsbService. Data received from serial port is displayed through this handler
      */
@@ -192,6 +202,28 @@ public class UserInterfaz extends AppCompatActivity {
                 case ServiceReceiver.SYNC_READ:
                     String buffer = (String) msg.obj;
                     mActivity.get().display.append(buffer);
+                    break;
+                case ServiceReceiver.SYNC_PHOTO:
+
+                    String extStorage = Environment.getExternalStorageDirectory().toString();
+                    File file = new File(extStorage, "sensor.jpg");
+
+                    String myJpgPath = file.getPath();
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 2;
+                    Bitmap bm = BitmapFactory.decodeFile(myJpgPath, options);
+                    if(bm != null){
+                        int width = bm.getWidth();
+                        int height = bm.getHeight();
+                        Matrix matrix = new Matrix();
+                        float scaleWidth = ((float)mActivity.get().camImageView.getWidth())/ width;
+                        float scaleHeight = scaleWidth;
+                        matrix.postScale(scaleWidth, scaleHeight);
+                        Bitmap result = Bitmap.createBitmap(bm, 0, 0, width,
+                                height, matrix, true);
+                        mActivity.get().camImageView.setImageBitmap(result);
+                    }
+
                     break;
             }
         }

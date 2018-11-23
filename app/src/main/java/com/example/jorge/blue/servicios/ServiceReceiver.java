@@ -53,6 +53,7 @@ public class ServiceReceiver extends Service {
     public static final int CTS_CHANGE = 1;
     public static final int DSR_CHANGE = 2;
     public static final int SYNC_READ = 3;
+    public static final int SYNC_PHOTO = 4;
     private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
     private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
     public static boolean SERVICE_CONNECTED = false;
@@ -68,9 +69,13 @@ public class ServiceReceiver extends Service {
     private StringBuilder dataBuffer = new StringBuilder();
     private static int PRETTY_PRINT_INDENT_FACTOR = 4;
     private String TAG = "USB-RECEIVER";
-    byte[] imageBuffer = new byte[15360];  // 15KB reserved
+    byte[] imageBuffer = new byte[153600];  // 15KB reserved
     private FileOutputStream ImageOutStream;
     private static int  fileIndex = 0;
+    private boolean takeOnePhoto = false;
+    boolean validHeader = false;
+    boolean validFooter = false;
+    byte theLastbyte;
 
     private boolean serialPortConnected;
     /*
@@ -81,7 +86,8 @@ public class ServiceReceiver extends Service {
     private UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
         @Override
         public void onReceivedData(byte[] arg0) {
-            try {
+            try{
+                Log.d(TAG, "Length:"+arg0.length);
                 String data = new String(arg0, "UTF-8");
                 if (mHandler != null)
                     mHandler.obtainMessage(MESSAGE_FROM_SERIAL_PORT, data).sendToTarget();
@@ -337,12 +343,12 @@ public class ServiceReceiver extends Service {
         }
     }
 
-    public boolean SaveImagetoSD()
+    public boolean saveImagetoSD()
     {
-        Log.i(TAG, "SaveImagetoSD ");
+        Log.i(TAG, "saveImagetoSD ");
 
         String extStorage = Environment.getExternalStorageDirectory().toString();
-        File file = new File(extStorage, "motoduino.jpg");
+        File file = new File(extStorage, "sensor.jpg");
         if (checkSDCard() == false)
             return false;
 
@@ -367,73 +373,60 @@ public class ServiceReceiver extends Service {
     private class ReadThread extends Thread {
         @Override
         public void run() {
-            boolean valid = true;
-
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
 
             while(true){
                 byte[] buffer = new byte[1024];
                 int n = serialPort.syncRead(buffer, 0);
-               // Log.d(TAG, "Length:"+n);
-                if(n > 0) {
-                    byte[] received = new byte[n];
-                    System.arraycopy(buffer, 0, received, 0, n);
-                    String receivedStr = new String(received);
 
-                    mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
-                    //dataBuffer.append(receivedStr);
-
+                if(n > 0 ) {
                     try {
 
                         for(int i=0; i<n; i++) {
-                            imageBuffer[fileIndex] = buffer[i];
-                            fileIndex++;
-
-                            Log.d(TAG, "buffer: "+buffer[i]);
-
-                            if (buffer[i] == (byte) 0xD9) {
-                                if(buffer[i-1] == (byte)0xFF) {
-                                    if (SaveImagetoSD() == true) {
-                                        Log.d(TAG, "Image saved");
+                            //Start of image
+                            if(!validHeader && buffer[i] == (byte) 0xD8){
+                                if((i-1) >= 0 && buffer[i-1] == (byte)0xFF) {
+                                    Log.d(TAG, "Saving header");
+                                    validHeader = true;
+                                    //Copying the header.
+                                    fileIndex = 0;
+                                    imageBuffer[fileIndex] = buffer[i-1];
+                                    fileIndex++;
+                                    imageBuffer[fileIndex] = buffer[i];
+                                    fileIndex++;
+                                }else if(theLastbyte == (byte)0xFF){
+                                    Log.d(TAG, "Saving header from last byte");
+                                    validHeader = true;
+                                    fileIndex = 0;
+                                    imageBuffer[fileIndex] = theLastbyte;
+                                    fileIndex++;
+                                    imageBuffer[fileIndex] = buffer[i];
+                                    fileIndex++;
+                                }
+                            }
+                            //Only if you get a valid header i can copy the body
+                            else if(validHeader && buffer[i] != (byte) 0xD9) {
+                               // Log.d(TAG, "Saving body and footer");
+                                imageBuffer[fileIndex] = buffer[i];
+                                fileIndex++;
+                            }
+                            else if (validHeader && buffer[i] == (byte) 0xD9 ) {
+                                imageBuffer[fileIndex] = buffer[i];
+                                if(((i-1) >= 0 && buffer[i-1] == (byte)0xFF) || theLastbyte == (byte)0xFF ) {
+                                    takeOnePhoto = true;
+                                    validHeader = false; //reseting states
+                                    if (saveImagetoSD() == true) {
+                                        Log.d(TAG, "Saving image: "+fileIndex);
+                                        mHandler.obtainMessage(SYNC_PHOTO, n, -1, theLastbyte).sendToTarget();
                                     }
                                 }
                             }
+                            //Always saving the last byte got
+                            theLastbyte = buffer[n];
                         }
                     } catch (Exception e) {
+                        Log.d(TAG, "Error: " + e.getStackTrace().toString());
                         e.printStackTrace();
                     }
-
-
-//                    int endOfLineIndex = dataBuffer.indexOf("#");
-//                    if (endOfLineIndex > 0) {
-//                        valid ++;
-//                        if(valid > 1){
-//                            Log.d(TAG,"index:"+endOfLineIndex);
-//                            String data = dataBuffer.substring(0, endOfLineIndex);
-//
-//                            File photo=new File(Environment.getExternalStorageDirectory(), "photo"+System.currentTimeMillis()+".JPG");
-//
-//                            if (photo.exists()) {
-//                                photo.delete();
-//                            }
-//
-//                            try {
-//                                FileOutputStream fos=new FileOutputStream(photo.getPath());
-//                                byte[] dataByte = data.getBytes("UTF-32");
-//                                String base64 = Base64.encodeToString(dataByte, Base64.DEFAULT);
-//                                Log.d(TAG,"data:"+base64);
-//                                fos.write(dataByte);
-//                                fos.close();
-//                            }
-//                            catch (java.io.IOException e) {
-//                                Log.e(TAG, "PHOTO EXCEPTION ", e);
-//                            }
-//                        }
-
-                    //dataBuffer.delete(0, dataBuffer.length());
-               //     }
-
                 }
             }
         }

@@ -22,9 +22,20 @@
         android:layout_height="150dp"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="34dp"
+        android:visibility="invisible"
         android:background="#FFFFFF"
         android:scrollbars="vertical"
         android:gravity="bottom" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="34dp"
+        android:background="#FFFFFF"
+        android:gravity="bottom"
+        android:scrollbars="vertical" />
 
     <EditText
         android:id="@+id/editText1"
@@ -33,6 +44,7 @@
         android:layout_alignLeft="@+id/textView1"
         android:layout_alignRight="@+id/textView1"
         android:layout_below="@+id/textView1"
+        android:visibility="invisible"
         android:layout_marginTop="28dp"
         android:ems="10">
 
@@ -46,6 +58,7 @@
         android:layout_alignLeft="@+id/editText1"
         android:layout_alignRight="@+id/editText1"
         android:layout_below="@+id/editText1"
+        android:visibility="invisible"
         android:layout_marginTop="42dp"
         android:text="Send"/>
 
