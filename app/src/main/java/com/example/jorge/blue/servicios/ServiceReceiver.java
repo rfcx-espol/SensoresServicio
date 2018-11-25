@@ -72,6 +72,7 @@ public class ServiceReceiver extends Service {
     byte[] imageBuffer = new byte[153600];  // 15KB reserved
     private FileOutputStream ImageOutStream;
     private static int  fileIndex = 0;
+    private static int finalIndex = 0;
     private boolean takeOnePhoto = false;
     boolean validHeader = false;
     boolean validFooter = false;
@@ -275,7 +276,6 @@ public class ServiceReceiver extends Service {
             if (serialPort != null) {
                 if (serialPort.syncOpen()) {
                     serialPortConnected = true;
-                    fileIndex = 0;
                     serialPort.setBaudRate(BAUD_RATE);
                     serialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     serialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
@@ -360,13 +360,21 @@ public class ServiceReceiver extends Service {
         }
 
         try {
-            ImageOutStream.write(imageBuffer, 0, fileIndex);
+            System.out.println("Saving image:============================================");
+            System.out.println("Saving image: HEADER 1 : "+String.format("%02X ", imageBuffer[0]));
+            System.out.println("Saving image: HEADER 2 : "+String.format("%02X ", imageBuffer[1]));
+            System.out.println("Saving image: HEADER 3 : "+String.format("%02X ", imageBuffer[2]));
+            System.out.println("Saving image:============================================");
+            System.out.println("Saving image: FOOTER 1 : "+String.format("%02X ", imageBuffer[finalIndex -2]));
+            System.out.println("Saving image: FOOTER 2 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
+            System.out.println("Saving image: FOOTER 3 : "+String.format("%02X ", imageBuffer[finalIndex]));
+            ImageOutStream.write(imageBuffer, 0, (finalIndex+1));
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
-        Log.i(TAG, "Save file size = "+fileIndex);
+        Log.i(TAG, "Save file size = "+finalIndex);
         return true;
     }
 
@@ -383,45 +391,55 @@ public class ServiceReceiver extends Service {
 
                         for(int i=0; i<n; i++) {
                             //Start of image
-                            if(!validHeader && buffer[i] == (byte) 0xD8){
-                                if((i-1) >= 0 && buffer[i-1] == (byte)0xFF) {
-                                    Log.d(TAG, "Saving header");
-                                    validHeader = true;
-                                    //Copying the header.
-                                    fileIndex = 0;
-                                    imageBuffer[fileIndex] = buffer[i-1];
-                                    fileIndex++;
-                                    imageBuffer[fileIndex] = buffer[i];
-                                    fileIndex++;
-                                }else if(theLastbyte == (byte)0xFF){
-                                    Log.d(TAG, "Saving header from last byte");
-                                    validHeader = true;
-                                    fileIndex = 0;
-                                    imageBuffer[fileIndex] = theLastbyte;
-                                    fileIndex++;
-                                    imageBuffer[fileIndex] = buffer[i];
-                                    fileIndex++;
-                                }
-                            }
-                            //Only if you get a valid header i can copy the body
-                            else if(validHeader && buffer[i] != (byte) 0xD9) {
-                               // Log.d(TAG, "Saving body and footer");
-                                imageBuffer[fileIndex] = buffer[i];
+
+
+//                            if(fileIndex > 0
+//                                    && imageBuffer[fileIndex - 1] == (byte)0xFF
+//                                    && !validHeader && buffer[i] == (byte)0xD9 ){
+//                                System.out.println("Saving image: RESET FFD9: "+fileIndex);
+//                                fileIndex = 0;
+//                            }
+//                            else
+                              if(fileIndex > 1
+                                    && imageBuffer[fileIndex - 2]==(byte)0xFF
+                                    && imageBuffer[fileIndex - 1]==(byte)0xD8
+                                    && buffer[i]==(byte)0xFF ){
+                              if(finalIndex > 1000) {
+                                  System.out.println("Saving image: SAVING FOOTER  1 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
+                                  System.out.println("Saving image: SAVING FOOTER  2 : "+String.format("%02X ", imageBuffer[finalIndex]));
+                                  System.out.println("Saving image: INDEX    : "+finalIndex);
+
+//                                    takeOnePhoto = true;
+                                  if (saveImagetoSD()) {
+                                      System.out.println("Saving image: FOOTER: " + finalIndex);
+                                  }
+                              }
+                                fileIndex = 0;
+                                validHeader = true;
+                                imageBuffer[fileIndex] = (byte)0xFF;
                                 fileIndex++;
+                                imageBuffer[fileIndex] = (byte)0xD8;
+                                fileIndex++;
+                                imageBuffer[fileIndex] = (byte)0xFF;
+                                System.out.println("Saving image: HEADER: "+fileIndex);
+                                fileIndex++;
+
                             }
-                            else if (validHeader && buffer[i] == (byte) 0xD9 ) {
-                                imageBuffer[fileIndex] = buffer[i];
-                                if(((i-1) >= 0 && buffer[i-1] == (byte)0xFF) || theLastbyte == (byte)0xFF ) {
-                                    takeOnePhoto = true;
-                                    validHeader = false; //reseting states
-                                    if (saveImagetoSD() == true) {
-                                        Log.d(TAG, "Saving image: "+fileIndex);
-                                        mHandler.obtainMessage(SYNC_PHOTO, n, -1, theLastbyte).sendToTarget();
-                                    }
-                                }
+                            else{
+                                  imageBuffer[fileIndex] = buffer[i];
+                                  if(fileIndex > 0
+                                          && imageBuffer[fileIndex-1] == (byte)0xFF
+                                          && imageBuffer[fileIndex] == (byte)0xD9
+                                          ){
+                                      System.out.println("Saving image: PRE - FOOTER  1 : "+String.format("%02X ", imageBuffer[fileIndex -1]));
+                                      System.out.println("Saving image: PRE - FOOTER  2 : "+String.format("%02X ", imageBuffer[fileIndex]));
+                                      System.out.println("Saving image: PRE - INDEX    : "+fileIndex);
+                                      finalIndex = fileIndex;
+
+                                  }
+                                  fileIndex++;
                             }
-                            //Always saving the last byte got
-                            theLastbyte = buffer[n];
+
                         }
                     } catch (Exception e) {
                         Log.d(TAG, "Error: " + e.getStackTrace().toString());
