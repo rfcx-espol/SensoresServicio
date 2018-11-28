@@ -55,7 +55,7 @@ public class ServiceReceiver extends Service {
     public static final int SYNC_READ = 3;
     public static final int SYNC_PHOTO = 4;
     private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-    private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
+    private static final int BAUD_RATE = 115200; // BaudRate. Change this value if you need
     public static boolean SERVICE_CONNECTED = false;
 
     private IBinder binder = new UsbBinder();
@@ -69,14 +69,14 @@ public class ServiceReceiver extends Service {
     private StringBuilder dataBuffer = new StringBuilder();
     private static int PRETTY_PRINT_INDENT_FACTOR = 4;
     private String TAG = "USB-RECEIVER";
-    byte[] imageBuffer = new byte[153600];  // 15KB reserved
+    private int MAX_VALUE = 153600;
+    byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
     private FileOutputStream ImageOutStream;
     private static int  fileIndex = 0;
     private static int finalIndex = 0;
-    private boolean takeOnePhoto = false;
+    private static int startIndex = -1;
+    private static int endIndex = -1;
     boolean validHeader = false;
-    boolean validFooter = false;
-    byte theLastbyte;
 
     private boolean serialPortConnected;
     /*
@@ -201,8 +201,8 @@ public class ServiceReceiver extends Service {
      */
 
     public void changeBaudRate(int baudRate){
-        if(serialPort != null)
-            serialPort.setBaudRate(baudRate);
+        //if(serialPort != null)
+       //     serialPort.setBaudRate(baudRate);
     }
 
     public void setHandler(Handler mHandler) {
@@ -388,30 +388,31 @@ public class ServiceReceiver extends Service {
 
                 if(n > 0 ) {
                     try {
+                        byte[] received = new byte[n];
+                        System.arraycopy(buffer, 0, received, 0, n);
+                        String receivedStr = new String(received);
+                        Log.d(TAG,":"+receivedStr);
+                        mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
 
                         for(int i=0; i<n; i++) {
                             //Start of image
 
+                              if(fileIndex >= MAX_VALUE){
+                                  fileIndex = 0;
+                              }
 
-//                            if(fileIndex > 0
-//                                    && imageBuffer[fileIndex - 1] == (byte)0xFF
-//                                    && !validHeader && buffer[i] == (byte)0xD9 ){
-//                                System.out.println("Saving image: RESET FFD9: "+fileIndex);
-//                                fileIndex = 0;
-//                            }
-//                            else
                               if(fileIndex > 1
                                     && imageBuffer[fileIndex - 2]==(byte)0xFF
                                     && imageBuffer[fileIndex - 1]==(byte)0xD8
                                     && buffer[i]==(byte)0xFF ){
-                              if(finalIndex > 1000) {
-                                  System.out.println("Saving image: SAVING FOOTER  1 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
-                                  System.out.println("Saving image: SAVING FOOTER  2 : "+String.format("%02X ", imageBuffer[finalIndex]));
-                                  System.out.println("Saving image: INDEX    : "+finalIndex);
-
-//                                    takeOnePhoto = true;
+                              if(finalIndex > 1000 && endIndex >= 0) {
+                                  endIndex = -1;
+                                  Log.d(TAG,"Saving image: SAVING FOOTER  1 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
+                                  Log.d(TAG,"Saving image: SAVING FOOTER  2 : "+String.format("%02X ", imageBuffer[finalIndex]));
+                                  Log.d(TAG,"Saving image: INDEX    : "+finalIndex);
                                   if (saveImagetoSD()) {
-                                      System.out.println("Saving image: FOOTER: " + finalIndex);
+                                      mHandler.obtainMessage(SYNC_PHOTO, receivedStr).sendToTarget();
+                                      Log.d(TAG,"Saving image: FOOTER: " + finalIndex);
                                   }
                               }
                                 fileIndex = 0;
@@ -421,19 +422,29 @@ public class ServiceReceiver extends Service {
                                 imageBuffer[fileIndex] = (byte)0xD8;
                                 fileIndex++;
                                 imageBuffer[fileIndex] = (byte)0xFF;
-                                System.out.println("Saving image: HEADER: "+fileIndex);
+                                Log.d(TAG,"Saving image: HEADER: "+fileIndex);
                                 fileIndex++;
 
                             }
                             else{
                                   imageBuffer[fileIndex] = buffer[i];
+                                 // startIndex = receivedStr.indexOf("#photo");
+                                 // Log.d(TAG,"Saving image: START INDEX PHOTO  : "+startIndex);
+
                                   if(fileIndex > 0
                                           && imageBuffer[fileIndex-1] == (byte)0xFF
                                           && imageBuffer[fileIndex] == (byte)0xD9
                                           ){
-                                      System.out.println("Saving image: PRE - FOOTER  1 : "+String.format("%02X ", imageBuffer[fileIndex -1]));
-                                      System.out.println("Saving image: PRE - FOOTER  2 : "+String.format("%02X ", imageBuffer[fileIndex]));
-                                      System.out.println("Saving image: PRE - INDEX    : "+fileIndex);
+
+                                      endIndex = (new String(imageBuffer)).indexOf("photo#");
+                                      if(endIndex >= 0){
+                                          Log.d(TAG,"Saving image: END INDEX PHOTO  : "+endIndex);
+                                      }
+
+
+                                      Log.d(TAG,"Saving image: PRE - FOOTER  1 : "+String.format("%02X ", imageBuffer[fileIndex -1]));
+                                      Log.d(TAG,"Saving image: PRE - FOOTER  2 : "+String.format("%02X ", imageBuffer[fileIndex]));
+                                      Log.d(TAG,"Saving image: PRE - INDEX    : "+fileIndex);
                                       finalIndex = fileIndex;
 
                                   }
