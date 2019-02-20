@@ -15,7 +15,9 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -27,12 +29,24 @@ import android.widget.Toast;
 import com.example.jorge.blue.R;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
+import com.example.jorge.blue.utils.Identifiers;
+import com.facebook.battery.metrics.composite.CompositeMetrics;
+import com.facebook.battery.metrics.composite.CompositeMetricsCollector;
+import com.facebook.battery.metrics.cpu.CpuFrequencyMetrics;
+import com.facebook.battery.metrics.cpu.CpuMetrics;
+import com.facebook.battery.metrics.network.NetworkMetrics;
+import com.facebook.battery.metrics.network.RadioStateMetrics;
+import com.facebook.battery.metrics.time.TimeMetrics;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.Set;
 
+import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
+
 public class UserInterfaz extends AppCompatActivity {
+
+    static String BAR_TITLE="Data Sender: ";
 
     /*
      * Notifications from UsbService will be received here.
@@ -61,10 +75,14 @@ public class UserInterfaz extends AppCompatActivity {
     };
     private ServiceReceiver usbService;
     private TextView display;
-    private EditText editText;
-    private CheckBox box9600, box38400;
     private MyHandler mHandler;
     public ImageView camImageView;
+    public Button log;
+
+    private final CompositeMetricsCollector mCollector =
+            SensorApplication.INSTANCE.getMetricsCollector();
+    private final CompositeMetrics mMetrics = mCollector.createMetrics();
+
     private final ServiceConnection usbConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName arg0, IBinder arg1) {
@@ -85,54 +103,18 @@ public class UserInterfaz extends AppCompatActivity {
 
         mHandler = new MyHandler(this);
 
-        display = (TextView) findViewById(R.id.textView1);
+        display = (TextView) findViewById(R.id.display);
         camImageView = (ImageView) findViewById(R.id.imageView);
-        editText = (EditText) findViewById(R.id.editText1);
-        Button sendButton = (Button) findViewById(R.id.buttonSend);
-        sendButton.setOnClickListener(new View.OnClickListener() {
+        log = (Button) findViewById(R.id.log);
+        log.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!editText.getText().toString().equals("")) {
-                    String data = editText.getText().toString();
-                    if (usbService != null) { // if UsbService was correctly binded, Send data
-                        usbService.write(data.getBytes());
-                    }
-                }
+                updateContent();
             }
         });
 
-        box9600 = (CheckBox) findViewById(R.id.checkBox);
-        box9600.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if(box9600.isChecked())
-                    box38400.setChecked(false);
-                else
-                    box38400.setChecked(true);
-            }
-        });
-
-        box38400 = (CheckBox) findViewById(R.id.checkBox2);
-        box38400.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if(box38400.isChecked())
-                    box9600.setChecked(false);
-                else
-                    box9600.setChecked(true);
-            }
-        });
-
-        Button baudrateButton = (Button) findViewById(R.id.buttonBaudrate);
-        baudrateButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(box9600.isChecked())
-                    usbService.changeBaudRate(9600);
-                else
-                    usbService.changeBaudRate(38400);
-            }
-        });
+        setAPIKey(this);
+        getSupportActionBar().setTitle(BAR_TITLE+Identifiers.APIKey);
     }
 
     @Override
@@ -147,6 +129,25 @@ public class UserInterfaz extends AppCompatActivity {
         super.onPause();
         unregisterReceiver(mUsbReceiver);
         unbindService(usbConnection);
+    }
+
+    private void updateContent() {
+        mCollector.getSnapshot(mMetrics);
+        String separator = "========================";
+        display.append(separator);
+        String text = "\nSnapshot at " + System.currentTimeMillis() + ":\n" + mMetrics.getMetric(TimeMetrics.class);
+        display.append(text);
+        String text2 = ":\n" + mMetrics.getMetric(CpuMetrics.class);
+        display.append(text2);
+       // String text3 = ":\n" + mMetrics.getMetric(CpuFrequencyMetrics.class);
+        //display.append(text3);
+        String text4 = ":\n" + mMetrics.getMetric(NetworkMetrics.class);
+        display.append(text4);
+
+        Log.d("BatteryMetrics", text);
+        Log.d("BatteryMetrics", text2);
+       // Log.d("BatteryMetrics", text3);
+        Log.d("BatteryMetrics", text4);
     }
 
     private void startService(Class<?> service, ServiceConnection serviceConnection, Bundle extras) {
@@ -205,8 +206,9 @@ public class UserInterfaz extends AppCompatActivity {
                     break;
                 case ServiceReceiver.SYNC_PHOTO:
 
+                    String photoName = (String) msg.obj;
                     String extStorage = Environment.getExternalStorageDirectory().toString();
-                    File file = new File(extStorage, "sensor.jpg");
+                    File file = new File(extStorage, photoName);
 
                     String myJpgPath = file.getPath();
                     BitmapFactory.Options options = new BitmapFactory.Options();

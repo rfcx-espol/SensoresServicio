@@ -22,7 +22,8 @@ public class Identifiers {
     //ALARMA EN EJECUCIÓN
     public static AlarmManager alarmManager;
 
-    public static final String URL_SERVER ="http://200.126.14.250/api/Data";
+    public static final String URL_SERVER ="http://200.126.14.250/";
+
 
     public static String APIKey;
     public static Call call;

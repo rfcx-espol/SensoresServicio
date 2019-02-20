@@ -1,31 +1,43 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingBottom="16dp"
+    android:background="@color/colorPrimary"
+    android:orientation="vertical"
     android:paddingLeft="16dp"
+    android:paddingTop="16dp"
     android:paddingRight="16dp"
-    android:paddingTop="16dp">
+    android:paddingBottom="16dp">
 
     <TextView
-        android:id="@+id/textViewTitle"
+        android:id="@+id/title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:text="@string/serial_port"
-        android:textAppearance="?android:attr/textAppearanceLarge"/>
+        android:textSize="11dp"
+        android:text="Sensor App V1"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
 
     <TextView
-        android:id="@+id/textView1"
+        android:id="@+id/display"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
+        android:layout_height="105dp"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="34dp"
-        android:visibility="invisible"
-        android:background="#FFFFFF"
+        android:layout_marginTop="5dp"
+        android:textSize="12dp"
+        android:background="@android:color/background_light"
+        android:textColor="#000000"
+        android:gravity="bottom"
         android:scrollbars="vertical"
-        android:gravity="bottom" />
+        android:visibility="visible" />
+
+    <Button
+        android:id="@+id/log"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/imageView"
+        android:layout_alignStart="@+id/textView1"
+        android:text="Get Log" />
 
     <ImageView
         android:id="@+id/imageView"
@@ -37,58 +49,4 @@
         android:gravity="bottom"
         android:scrollbars="vertical" />
 
-    <EditText
-        android:id="@+id/editText1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/textView1"
-        android:layout_alignRight="@+id/textView1"
-        android:layout_below="@+id/textView1"
-        android:visibility="invisible"
-        android:layout_marginTop="28dp"
-        android:ems="10">
-
-        <requestFocus/>
-    </EditText>
-
-    <Button
-        android:id="@+id/buttonSend"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/editText1"
-        android:layout_alignRight="@+id/editText1"
-        android:layout_below="@+id/editText1"
-        android:visibility="invisible"
-        android:layout_marginTop="42dp"
-        android:text="Send"/>
-
-    <CheckBox
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="9600"
-        android:id="@+id/checkBox"
-        android:checked="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/buttonSend"/>
-
-    <CheckBox
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="38400"
-        android:id="@+id/checkBox2"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_below="@+id/buttonSend"/>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Set baud rate"
-        android:id="@+id/buttonBaudrate"
-        android:layout_below="@+id/checkBox"
-        android:layout_alignRight="@+id/checkBox2"
-        android:layout_alignEnd="@+id/checkBox2"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"/>
-</RelativeLayout>
+</LinearLayout>

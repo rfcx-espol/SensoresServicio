@@ -1,11 +1,14 @@
 package com.example.jorge.blue.servicios;
 
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.hardware.usb.UsbDevice;
@@ -15,11 +18,14 @@ import android.os.Binder;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
 
+import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
+import com.example.jorge.blue.utils.Utilities;
 import com.felhr.usbserial.CDCSerialDevice;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
@@ -30,12 +36,19 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
+
+import static com.example.jorge.blue.utils.Identifiers.alarmManager;
+import static com.example.jorge.blue.utils.Identifiers.delta_time;
+import static com.example.jorge.blue.utils.Identifiers.onService;
+import static com.example.jorge.blue.utils.Identifiers.pendingIntent;
 
 public class ServiceReceiver extends Service {
 
@@ -55,7 +68,7 @@ public class ServiceReceiver extends Service {
     public static final int SYNC_READ = 3;
     public static final int SYNC_PHOTO = 4;
     private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-    private static final int BAUD_RATE = 115200; // BaudRate. Change this value if you need
+    private static final int BAUD_RATE = 2000000; // BaudRate. Change this value if you need
     public static boolean SERVICE_CONNECTED = false;
 
     private IBinder binder = new UsbBinder();
@@ -67,16 +80,16 @@ public class ServiceReceiver extends Service {
     private UsbDeviceConnection connection;
     private UsbSerialDevice serialPort;
     private StringBuilder dataBuffer = new StringBuilder();
-    private static int PRETTY_PRINT_INDENT_FACTOR = 4;
     private String TAG = "USB-RECEIVER";
     private int MAX_VALUE = 153600;
     byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
     private FileOutputStream ImageOutStream;
     private static int  fileIndex = 0;
     private static int finalIndex = 0;
-    private static int startIndex = -1;
     private static int endIndex = -1;
     boolean validHeader = false;
+
+    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, Utilities.MEASURE_TABLE, null, 1);
 
     private boolean serialPortConnected;
     /*
@@ -179,6 +192,17 @@ public class ServiceReceiver extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (!onService) {
+            pendingIntent = PendingIntent.getService(context, 0,
+                    new Intent(context, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
+            alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager != null) {
+                alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
+                        delta_time, pendingIntent);
+                Log.d("ALARMA", "ALARMA CREADA DESPUÉS DE REINICIAR EL DISPOSITIVO");
+            }
+            onService = true;
+        }
         return Service.START_NOT_STICKY;
     }
 
@@ -348,18 +372,16 @@ public class ServiceReceiver extends Service {
         Log.i(TAG, "saveImagetoSD ");
 
         String extStorage = Environment.getExternalStorageDirectory().toString();
-        File file = new File(extStorage, "sensor.jpg");
+        Date date = new Date();
+        DateFormat dateFormat = android.text.format.DateFormat.getDateFormat(getApplicationContext());
+        String time = dateFormat.format(date);
+        String extension = "jpg";
+        String nameComposed = "sensor_"+time+"."+extension;
+        File file = new File(extStorage, nameComposed);
         if (checkSDCard() == false)
             return false;
-
         try {
             ImageOutStream = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        try {
             System.out.println("Saving image:============================================");
             System.out.println("Saving image: HEADER 1 : "+String.format("%02X ", imageBuffer[0]));
             System.out.println("Saving image: HEADER 2 : "+String.format("%02X ", imageBuffer[1]));
@@ -369,13 +391,55 @@ public class ServiceReceiver extends Service {
             System.out.println("Saving image: FOOTER 2 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
             System.out.println("Saving image: FOOTER 3 : "+String.format("%02X ", imageBuffer[finalIndex]));
             ImageOutStream.write(imageBuffer, 0, (finalIndex+1));
+            //Saving images.
+
+            saveImageInfo(nameComposed, "SENSOR");
+            mHandler.obtainMessage(SYNC_PHOTO, nameComposed).sendToTarget();
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
         Log.i(TAG, "Save file size = "+finalIndex);
+
         return true;
+    }
+
+    public void saveImageInfo( String name, String type)
+    {
+        Long tsLong = System.currentTimeMillis()/1000;
+        String timestamp = tsLong.toString();
+
+        SQLiteDatabase db = conn.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(Utilities.IMAGE_NAME, name);
+        values.put(Utilities.IMAGE_TYPE, type);
+        values.put(Utilities.IMAGE_TIMESTAMP, timestamp);
+
+        long result = db.insert(Utilities.IMAGES_TABLE, null, values);
+        Log.d("DB", "Saving data image: " + name+ ", timestamp: " + timestamp);
+        db.close();
+
+    }
+
+    public void saveMeasure(String ts, String type, String value, String unit, String location, String id)
+    {
+        SQLiteDatabase db = conn.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(Utilities.FIELD_TIMESTAMP, ts);
+        values.put(Utilities.FIELD_TYPE, type);
+        values.put(Utilities.FIELD_VALUE, value);
+        values.put(Utilities.FIELD_UNIT, unit);
+        values.put(Utilities.FIELD_LOCATION, location);
+        values.put(Utilities.FIELD_SENSORID, id);
+
+        long result = db.insert(Utilities.MEASURE_TABLE, Utilities.FIELD_SENSORID, values);
+        Log.d("DB", "Saving data sensor from timestamp, data, unit:" + ts +","+ value + "," + unit);
+        db.close();
+
     }
 
     private class ReadThread extends Thread {
@@ -393,6 +457,26 @@ public class ServiceReceiver extends Service {
                         String receivedStr = new String(received);
                         Log.d(TAG,":"+receivedStr);
                         mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
+
+                        //Refactorized
+                        dataBuffer.append(receivedStr);
+
+                        int endOfLineIndex = dataBuffer.indexOf("#");
+
+                        if (endOfLineIndex > 0) {
+                            String measure = dataBuffer.substring(0, endOfLineIndex);
+                            String[] parts = measure.split(",");
+                            String sensorId = parts[0];
+                            String type = parts[1];
+                            String value = parts[2];
+                            String unit = parts[3];
+                            String location = parts[4];
+                            Long tsLong = System.currentTimeMillis()/1000;
+                            String ts = tsLong.toString();
+                            saveMeasure(ts, type, value, unit, location, sensorId);
+                            //Cleaning the buffer.
+                            dataBuffer.delete(0, dataBuffer.length());
+                        }
 
                         for(int i=0; i<n; i++) {
                             //Start of image
