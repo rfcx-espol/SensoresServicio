@@ -32,6 +32,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     private static final String url = Identifiers.URL_SERVER+"api/imgcapture";
 
     private File file;
+    private String unixtime;
 
     private Context context;
 
@@ -39,8 +40,9 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     String responseStr;
 
 
-    public ImageSender(Context context, File file) {
+    public ImageSender(Context context, File file, String unixtime) {
         this.context = context;
+        this.unixtime = unixtime;
         this.file = file;
     }
 
@@ -176,8 +178,8 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
             ContextWrapper cw = new ContextWrapper(context);
             initialization();
             addFormField("CaptureDate", "1547996460");
-            addFormField("StationId", "14");
-            addFormField("ApiKey", "23ff15852c63b066");
+            addFormField("StationId", Identifiers.ID_STATION);
+            addFormField("ApiKey", Identifiers.APIKey);
             addFilePart("ImageFile", file);
 
             Log.d("IMAGE SENDER", "SENDING... PHOTO: "+writer.toString());

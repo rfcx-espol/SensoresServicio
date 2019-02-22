@@ -1,6 +1,7 @@
 package com.example.jorge.blue.servicios;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -21,6 +22,7 @@ import okhttp3.OkHttpClient;
 
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.DataOutputStream;
@@ -79,7 +81,12 @@ public class SendingService extends Service {
         }
 
         sendPost();
-        sendPhoto();
+        try{
+            //autoSendPhoto();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
         Log.d("SS", "Servicio Envio ejecutado");
 
         return Service.START_STICKY;
@@ -95,7 +102,7 @@ public class SendingService extends Service {
     public JSONObject getImages()
     {
         SQLiteDatabase db = conn.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.IMAGES_TABLE+" ORDER BY " +Utilities.IMAGE_TIMESTAMP+" LIMIT "+Utilities.LIMIT_BY_DEFAULT, null);
+        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.IMAGES_TABLE+" ORDER BY " +Utilities.IMAGE_TIMESTAMP+" LIMIT "+Utilities.LIMIT_BY_DEFAULT_FOR_IMAGES, null);
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
 
@@ -157,20 +164,25 @@ public class SendingService extends Service {
         return null;
     }
 
-    public void sendPhoto(){
-
+    public void autoSendPhoto() throws JSONException {
         JSONObject jsonParam = getImages();
+        String nameComposed = jsonParam.getString("Name");
+        String unixtime = jsonParam.getString("Timestamp");
 
-        long time = System.currentTimeMillis();
-        String extension = "jpg";
-        String nameComposed = "sensor."+extension;
+        sendPhoto(this, nameComposed, unixtime);
+    }
 
-        File photo = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),  nameComposed);
+    public static void sendPhoto(Context context, String photoName, String unixtime){
+
+        String extStorage = Environment.getExternalStorageDirectory().toString();
+        File photo = new File(extStorage, photoName);
+
         Log.d(STATION_LOG, "SENDING PHOTO: "+Identifiers.APIKey);
+
         boolean exists =  photo.exists();
-        Log.d(STATION_LOG, "SENDING EXISTS: "+exists);
-        new ImageSender(this,
-                photo).execute();
+
+        new ImageSender(context,
+                photo, unixtime).execute();
     }
 
     public void sendPost() {

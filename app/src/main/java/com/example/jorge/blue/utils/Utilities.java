@@ -47,6 +47,7 @@ public class Utilities {
     public static final String IMAGE_NAME = "name";
 
     public static final String LIMIT_BY_DEFAULT = "10";
+    public static final String LIMIT_BY_DEFAULT_FOR_IMAGES = "1";
 
 
     //MÉTODO QUE ENVÍA EL APIKEY Y RECIBE EL ID DE LA ESTACIÓN EN LA BASE DE DATOS

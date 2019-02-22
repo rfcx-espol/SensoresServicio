@@ -47,6 +47,7 @@ import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 public class UserInterfaz extends AppCompatActivity {
 
     static String BAR_TITLE="Data Sender: ";
+    public static String TAG = "UserInterfaz";
 
     /*
      * Notifications from UsbService will be received here.
@@ -78,6 +79,7 @@ public class UserInterfaz extends AppCompatActivity {
     private MyHandler mHandler;
     public ImageView camImageView;
     public Button log;
+    public static UserInterfaz _instance;
 
     private final CompositeMetricsCollector mCollector =
             SensorApplication.INSTANCE.getMetricsCollector();
@@ -95,6 +97,15 @@ public class UserInterfaz extends AppCompatActivity {
             usbService = null;
         }
     };
+
+
+    public static UserInterfaz instance() {
+
+        if (_instance == null)
+            _instance = new UserInterfaz();
+        return _instance;
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -207,6 +218,7 @@ public class UserInterfaz extends AppCompatActivity {
                 case ServiceReceiver.SYNC_PHOTO:
 
                     String photoName = (String) msg.obj;
+                    Log.d(TAG, "Photo name: "+photoName);
                     String extStorage = Environment.getExternalStorageDirectory().toString();
                     File file = new File(extStorage, photoName);
 
@@ -226,6 +238,7 @@ public class UserInterfaz extends AppCompatActivity {
                         mActivity.get().camImageView.setImageBitmap(result);
                     }
 
+                    SendingService.sendPhoto(UserInterfaz.instance(), photoName, (System.currentTimeMillis() / 1000L)+"");
                     break;
             }
         }
