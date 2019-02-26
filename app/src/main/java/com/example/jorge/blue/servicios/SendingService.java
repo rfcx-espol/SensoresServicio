@@ -44,7 +44,7 @@ public class SendingService extends Service {
 
     public static String STATION_LOG = "SENDING DATA: ";
     private static OkHttpClient okHttpClient = new OkHttpClient();
-    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, "medicion", null, 1);
+    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, Utilities.MEASURE_DATABASE_NAME, null, 1);
 
     public class LocalBinder extends Binder {
         public SendingService getService() {
@@ -82,7 +82,7 @@ public class SendingService extends Service {
 
         sendPost();
         try{
-            //autoSendPhoto();
+            autoSendPhoto();
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -142,6 +142,7 @@ public class SendingService extends Service {
             try {
                 while (cursor.moveToNext()) {
                     JSONObject j = new JSONObject();
+                    Log.d("DB", "DATOS: "+ cursor.getString(3));
 
                     j.put("StationId", Identifiers.ID_STATION);
                     j.put("id", cursor.getInt(0));
@@ -152,9 +153,10 @@ public class SendingService extends Service {
                     j.put("Location", cursor.getString(5));
                     j.put("SensorId", cursor.getString(6));
                     jsonArray.put(j);
-
                 }
                 y.put("data", jsonArray);
+                Log.d("DB", "DATOS: "+ jsonArray.toString());
+
             } catch (Exception e) {
                 Log.d("DB", "no se pudo cargar datos desde la base");
             }
@@ -164,25 +166,33 @@ public class SendingService extends Service {
         return null;
     }
 
-    public void autoSendPhoto() throws JSONException {
+    public void autoSendPhoto(){
         JSONObject jsonParam = getImages();
-        String nameComposed = jsonParam.getString("Name");
-        String unixtime = jsonParam.getString("Timestamp");
-
-        sendPhoto(this, nameComposed, unixtime);
+        try {
+            JSONArray data = jsonParam.getJSONArray("data");
+            for (int i = 0; i < data.length(); i++) {
+                String nameComposed = data.getJSONObject(i).getString("Name");
+                int id = data.getJSONObject(i).getInt("id");
+                String unixtime = data.getJSONObject(i).getString("Timestamp");
+                Log.d(STATION_LOG, "SENDING PHOTO ID: "+id);
+                Log.d(STATION_LOG, "SENDING PHOTO NAME: "+nameComposed);
+                Log.d(STATION_LOG, "SENDING PHOTO UNIXTIME: "+unixtime);
+                sendPhoto(this, id, nameComposed, unixtime);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
-    public static void sendPhoto(Context context, String photoName, String unixtime){
+    public static void sendPhoto(Context context, int id, String photoName, String unixtime){
 
         String extStorage = Environment.getExternalStorageDirectory().toString();
         File photo = new File(extStorage, photoName);
 
-        Log.d(STATION_LOG, "SENDING PHOTO: "+Identifiers.APIKey);
-
         boolean exists =  photo.exists();
 
         new ImageSender(context,
-                photo, unixtime).execute();
+                id, photo, unixtime).execute();
     }
 
     public void sendPost() {
@@ -216,6 +226,7 @@ public class SendingService extends Service {
                     connect.disconnect();
                     if (st == 200)
                     {
+                        Log.d(STATION_LOG, "UPLOADED WITH SUCCESS!!");
                         deleteMeasures(jsonParam.getJSONArray("data"));
                         Log.d(STATION_LOG, "DATA DELETED!!");
                     }
@@ -231,14 +242,15 @@ public class SendingService extends Service {
         thread.start();
     }
 
-    public void deleteMeasures(JSONArray data)
-    {
+    public void deleteMeasures(JSONArray data) {
         try{
 
             List<Integer> ids = new ArrayList<Integer>();
 
             for (int i = 0; i< data.length(); i++) {
-                ids.add(data.getJSONObject(i).getInt("id"));
+                int id = data.getJSONObject(i).getInt("id");
+
+                ids.add(id);
             }
             SQLiteDatabase db = conn.getReadableDatabase();
 
@@ -256,11 +268,13 @@ public class SendingService extends Service {
             b.append(")");
 
             db.execSQL(b.toString(), whereArgs);
-            Log.d("DB",""+b.toString()+""+whereArgs);
+
+            Log.d(TAG,"DELETING MEASURE IDS: "+whereArgs.toString());
             conn.close();
         }catch (Exception e){
             e.printStackTrace();
         }
     }
+
 
 }

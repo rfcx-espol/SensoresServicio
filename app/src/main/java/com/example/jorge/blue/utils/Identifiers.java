@@ -29,7 +29,7 @@ public class Identifiers {
     public static Call call;
     public static boolean threadRunning = true;
     public static String ID_STATION = "5b4c066c89e5d232734c6845";
-    public static int delta_time =  60 * 1000;   //60 seg
+    public static int delta_time =  10 * 1000;   //120 seg / 2 minutos
     public static String BT_address = "";
 
     @SuppressLint("HardwareIds")

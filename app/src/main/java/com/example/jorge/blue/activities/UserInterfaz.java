@@ -238,7 +238,7 @@ public class UserInterfaz extends AppCompatActivity {
                         mActivity.get().camImageView.setImageBitmap(result);
                     }
 
-                    SendingService.sendPhoto(UserInterfaz.instance(), photoName, (System.currentTimeMillis() / 1000L)+"");
+                    SendingService.sendPhoto(UserInterfaz.instance(), 1, photoName, (System.currentTimeMillis() / 1000L)+"");
                     break;
             }
         }

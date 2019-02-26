@@ -82,7 +82,7 @@ public class ServiceReceiver extends Service {
     private UsbDevice device;
     private UsbDeviceConnection connection;
     private UsbSerialDevice serialPort;
-    private StringBuilder dataBuffer = new StringBuilder();
+    //private StringBuilder dataBuffer = new StringBuilder();
     private String TAG = "USB-RECEIVER";
     private int MAX_VALUE = 153600;
     byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
@@ -92,7 +92,7 @@ public class ServiceReceiver extends Service {
     private static int endIndex = -1;
     boolean validHeader = false;
 
-    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, Utilities.MEASURE_TABLE, null, 1);
+    ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, Utilities.MEASURE_DATABASE_NAME, null, 1);
 
     private boolean serialPortConnected;
     /*
@@ -428,8 +428,7 @@ public class ServiceReceiver extends Service {
 
     }
 
-    public void saveMeasure(String ts, String type, String value, String unit, String location, String id)
-    {
+    public void saveMeasure(String ts, String type, String value, String unit, String location, String id) {
         SQLiteDatabase db = conn.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(Utilities.FIELD_TIMESTAMP, ts);
@@ -441,6 +440,9 @@ public class ServiceReceiver extends Service {
 
         long result = db.insert(Utilities.MEASURE_TABLE, Utilities.FIELD_SENSORID, values);
         Log.d("DB", "Saving from timestamp, data, unit:" + ts +","+ value + "," + unit);
+
+
+        Log.d("DB", "RESULT :"+result);
         db.close();
 
     }
@@ -463,17 +465,21 @@ public class ServiceReceiver extends Service {
                             System.arraycopy(buffer, 0, received, 0, n);
                             String receivedStr = new String(received);
                             Log.d(TAG,":"+receivedStr);
-                            mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
+
 
                             //Refactorized
-                            dataBuffer.append(receivedStr);
+                           // dataBuffer.append(receivedStr);
 
-                            int endOfLineIndex = dataBuffer.indexOf("#");
+                            int endOfLineIndex = receivedStr.indexOf("#");
 
+                            int startOfLineIndex = receivedStr.indexOf("$$");
 
-                            if (endOfLineIndex > 0) {
-                                String measure = dataBuffer.substring(0, endOfLineIndex);
-                                String[] parts = measure.split(",");
+                            if (startOfLineIndex == 0 && endOfLineIndex > 0) {
+                                String measure = receivedStr;
+
+                                Log.d(TAG, "DATA TO SPLIT :"+measure.substring(2,endOfLineIndex));
+
+                                String[] parts = measure.substring(2,endOfLineIndex).split(",");
                                 String sensorId = parts[0];
                                 String type = parts[1];
                                 String value = parts[2];
@@ -484,8 +490,11 @@ public class ServiceReceiver extends Service {
                                 Log.d(TAG, "Saving data sensor in DataBase");
                                 saveMeasure(ts, type, value, unit, location, sensorId);
                                 //Cleaning the buffer.
-                                dataBuffer.delete(0, dataBuffer.length());
+                                measure = "";
+                                //dataBuffer.delete(0, dataBuffer.length());
                             }
+
+                            mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
                         }catch (Exception e){
                             //Maybe it is a image
                            // e.printStackTrace();

@@ -29,7 +29,7 @@ import static com.example.jorge.blue.utils.Identifiers.threadRunning;
 
 public class Utilities {
 
-
+    public static final String MEASURE_DATABASE_NAME = "measure";
     public static final String MEASURE_TABLE = "measure";
     public static final String FIELD_ID = "id";
     public static final String FIELD_TIMESTAMP = "timestamp";
@@ -46,7 +46,7 @@ public class Utilities {
     public static final String IMAGE_TYPE = "type";
     public static final String IMAGE_NAME = "name";
 
-    public static final String LIMIT_BY_DEFAULT = "10";
+    public static final String LIMIT_BY_DEFAULT = "1";
     public static final String LIMIT_BY_DEFAULT_FOR_IMAGES = "1";
 
 

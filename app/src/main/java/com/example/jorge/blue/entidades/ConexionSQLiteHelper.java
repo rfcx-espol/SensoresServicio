@@ -3,8 +3,12 @@ package com.example.jorge.blue.entidades;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import com.example.jorge.blue.utils.Utilities;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by JORGE on 4/6/18.
@@ -13,7 +17,7 @@ import com.example.jorge.blue.utils.Utilities;
 
 public class ConexionSQLiteHelper extends SQLiteOpenHelper {
 
-
+    public static String TAG = "ConexionSQLiteHelper";
     public final static String CREATE_MEASURE_TABLE =
             "CREATE TABLE " + Utilities.MEASURE_TABLE +
                     "("+

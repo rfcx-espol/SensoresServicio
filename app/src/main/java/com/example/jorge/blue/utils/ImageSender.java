@@ -12,11 +12,17 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.util.Log;
+
+import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
+import com.example.jorge.blue.servicios.SendingService;
 
 
 public class ImageSender extends AsyncTask<Void, Integer, Integer> {
@@ -31,6 +37,9 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
 
     private static final String url = Identifiers.URL_SERVER+"api/imgcapture";
 
+    public static final String TAG = "ImageSender";
+
+    private int id;
     private File file;
     private String unixtime;
 
@@ -40,10 +49,11 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     String responseStr;
 
 
-    public ImageSender(Context context, File file, String unixtime) {
+    public ImageSender(Context context, int id, File file, String unixtime) {
         this.context = context;
         this.unixtime = unixtime;
         this.file = file;
+        this.id = id;
     }
 
     public void initialization() throws IOException {
@@ -177,7 +187,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
 
             ContextWrapper cw = new ContextWrapper(context);
             initialization();
-            addFormField("CaptureDate", "1547996460");
+            addFormField("CaptureDate", unixtime);
             addFormField("StationId", Identifiers.ID_STATION);
             addFormField("ApiKey", Identifiers.APIKey);
             addFilePart("ImageFile", file);
@@ -209,8 +219,38 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     }
 
     private void success() {
-        //TODO: Add the code to delete de image in the phone.
-        Log.d("IMAGE SENDER", "SUCCESS SENDING PHOTO");
+        deleteImages(this.id);
+    }
+
+    public void deleteImages(int imageId) {
+        try{
+            Log.d(TAG,"DELETING IMAGE ID: "+imageId);
+            ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this.context, Utilities.MEASURE_DATABASE_NAME, null, 1);
+            List<Integer> ids = new ArrayList<Integer>();
+            ids.add(imageId);
+
+            SQLiteDatabase db = conn.getReadableDatabase();
+
+            StringBuilder b = new StringBuilder("DELETE FROM " + Utilities.IMAGES_TABLE +" WHERE "+Utilities.FIELD_ID+" IN(" );
+            String[] whereArgs = new String[ids.size()];
+            int index = 0;
+            for (int id: ids) {
+                whereArgs[index] = String.valueOf(id);
+                b.append("?");
+                if (index < ids.size() - 1) {
+                    b.append(",");
+                }
+                index++;
+            }
+            b.append(")");
+
+            db.execSQL(b.toString(), whereArgs);
+
+
+            conn.close();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     private void failure() {
