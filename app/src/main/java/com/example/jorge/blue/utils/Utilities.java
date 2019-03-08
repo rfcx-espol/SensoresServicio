@@ -28,39 +28,46 @@ import static com.example.jorge.blue.utils.Identifiers.threadRunning;
  */
 
 public class Utilities {
-    //Constantes campos tabla medicion
 
-    public static final String TABLA_MEDICION = "medicion";
-    public static final String CAMPO_TIMESTAMP = "timestamp";
-    public static final String CAMPO_TYPE = "type";
-    public static final String CAMPO_VALUE = "value";
-    public static final String CAMPO_UNIT = "unit";
-    public static final String CAMPO_LOCATION = "location";
-    public static final String CAMPO_SENSORID = "sensor";
-
-
-
+    public static final String MEASURE_DATABASE_NAME = "measure";
+    public static final String MEASURE_TABLE = "measure";
+    public static final String FIELD_ID = "id";
+    public static final String FIELD_TIMESTAMP = "timestamp";
+    public static final String FIELD_TYPE = "type";
+    public static final String FIELD_VALUE = "value";
+    public static final String FIELD_UNIT = "unit";
+    public static final String FIELD_LOCATION = "location";
+    public static final String FIELD_SENSORID = "sensor";
 
 
-    public final static String CREAR_TABLA_MEDICION = "CREATE TABLE " + TABLA_MEDICION +
-            "("+ CAMPO_TIMESTAMP +" TEXT, " + CAMPO_TYPE + " TEXT, " + CAMPO_VALUE +
-            " REAL, " + CAMPO_UNIT + " TEXT, " + CAMPO_SENSORID + " TEXT, " + CAMPO_LOCATION + " TEXT)";
+    public static final String IMAGES_TABLE = "image";
+    public static final String IMAGE_ID = "id";
+    public static final String IMAGE_TIMESTAMP = "timestamp";
+    public static final String IMAGE_TYPE = "type";
+    public static final String IMAGE_NAME = "name";
+
+    public static final String LIMIT_BY_DEFAULT = "1";
+    public static final String LIMIT_BY_DEFAULT_FOR_IMAGES = "1";
+
 
     //MÉTODO QUE ENVÍA EL APIKEY Y RECIBE EL ID DE LA ESTACIÓN EN LA BASE DE DATOS
     public static boolean getStationID(OkHttpClient okHttpClient){
         HttpUrl.Builder httpBuilder = HttpUrl.parse("http://200.126.14.250/api/Station").newBuilder();
         httpBuilder.addQueryParameter("APIKey", Identifiers.APIKey);
-        Log.d("HTTP", String.valueOf(httpBuilder));
+        Log.d("GET STATION ID", "HTTP: "+String.valueOf(httpBuilder));
         Request request = new Request.Builder().url(httpBuilder.build()).build();
         call = okHttpClient.newCall(request);
         try {
             if(!threadRunning){
+                Log.d("GET STATION ID", "THREAD IS RUNNING"+Identifiers.ID_STATION);
                 return false;
             }
+            Log.d("GET STATION ID", "BEFORE EXECUTE:"+Identifiers.ID_STATION);
             Response response = call.execute();
+
             if(response.code() == 200){
                 String resp = response.body().string();
-                //Log.d("RESP", resp);
+                Log.d("GET STATION ID", "RESPONSE: "+resp);
                 JSONObject obj = new JSONObject(resp);
                 if(obj.getString("APIKey").equals(Identifiers.APIKey)){
                     Identifiers.ID_STATION = obj.getString("Id");
@@ -69,19 +76,14 @@ public class Utilities {
                 }
                 return false;
             } else {
+                Log.d("GET STATION ID", "RESP WRONG CODE"+response.code());
                 response.body().close();
                 return false;
             }
-        } catch(IOException e){
+        } catch(Exception e){
             e.printStackTrace();
-            return false;
-        } catch(org.json.JSONException je){
-            je.printStackTrace();
-            Log.d("ERROR", je.getMessage());
+            Log.d("GET STATION ID", "ERROR: "+e.getMessage());
             return false;
         }
     }
-
-
-
 }

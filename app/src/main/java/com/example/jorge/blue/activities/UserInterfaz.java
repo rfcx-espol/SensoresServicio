@@ -1,188 +1,246 @@
 package com.example.jorge.blue.activities;
 
-
-import android.app.AlarmManager;
-import android.app.PendingIntent;
-import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.Image;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.example.jorge.blue.R;
 import com.example.jorge.blue.servicios.SendingService;
 import com.example.jorge.blue.servicios.ServiceReceiver;
 import com.example.jorge.blue.utils.Identifiers;
+import com.facebook.battery.metrics.composite.CompositeMetrics;
+import com.facebook.battery.metrics.composite.CompositeMetricsCollector;
+import com.facebook.battery.metrics.cpu.CpuFrequencyMetrics;
+import com.facebook.battery.metrics.cpu.CpuMetrics;
+import com.facebook.battery.metrics.network.NetworkMetrics;
+import com.facebook.battery.metrics.network.RadioStateMetrics;
+import com.facebook.battery.metrics.time.TimeMetrics;
 
-import static com.example.jorge.blue.utils.Identifiers.delta_time;
-import static com.example.jorge.blue.utils.Identifiers.onService;
-import static com.example.jorge.blue.utils.Identifiers.onService2;
-import static com.example.jorge.blue.utils.Identifiers.alarmManager;
-import static com.example.jorge.blue.utils.Identifiers.pendingIntent;
+import java.io.File;
+import java.lang.ref.WeakReference;
+import java.util.Set;
+
 import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
-
-import java.io.IOException;
-
-import java.util.UUID;
 
 public class UserInterfaz extends AppCompatActivity {
 
-    private static final String TAG = "hooli";
-    //1)
-    Button IdEncender, IdApagar,IdDesconectar;
-    static TextView IdBufferIn;
-    //-------------------------------------------
+    static String BAR_TITLE="Data Sender: ";
+    public static String TAG = "UserInterfaz";
 
-    int c = 20;
-    private BluetoothSocket btSocket = null;
-    private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    /*
+     * Notifications from UsbService will be received here.
+     */
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case ServiceReceiver.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
+                    Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
+                    break;
+                case ServiceReceiver.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
+                    Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
+                    break;
+                case ServiceReceiver.ACTION_NO_USB: // NO USB CONNECTED
+                    Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
+                    break;
+                case ServiceReceiver.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
+                    Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
+                    break;
+                case ServiceReceiver.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
+                    Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    };
+    private ServiceReceiver usbService;
+    private TextView display;
+    private MyHandler mHandler;
+    public ImageView camImageView;
+    public Button log;
+    public static UserInterfaz _instance;
+
+    private final CompositeMetricsCollector mCollector =
+            SensorApplication.INSTANCE.getMetricsCollector();
+    private final CompositeMetrics mMetrics = mCollector.createMetrics();
+
+    private final ServiceConnection usbConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName arg0, IBinder arg1) {
+            usbService = ((ServiceReceiver.UsbBinder) arg1).getService();
+            usbService.setHandler(mHandler);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            usbService = null;
+        }
+    };
 
 
-    Context thisContext = this;
+    public static UserInterfaz instance() {
+
+        if (_instance == null)
+            _instance = new UserInterfaz();
+        return _instance;
+    }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_interfaz);
-        //2)
-        //Enlaza los controles con sus respectivas vistas
-        IdEncender = (Button) findViewById(R.id.IdEncender);
-        IdApagar = (Button) findViewById(R.id.IdApagar);
-        IdDesconectar = (Button) findViewById(R.id.IdDesconectar);
-        IdBufferIn = (TextView) findViewById(R.id.IdBufferIn);
-        //setAPIKey(getApplicationContext());
-        //Log.d("APIKEY", Identifiers.APIKey);
 
+        mHandler = new MyHandler(this);
 
-
-        if(!onService) {
-            pendingIntent = PendingIntent.getService(getApplicationContext(), 0,
-                    new Intent(this, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
-            alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            if (alarmManager != null) {
-                alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), delta_time, pendingIntent);
-                Log.d("ALARMA", "ALARMA CREADA");
-            }
-            //startService(new Intent(thisContext, ServiceReceiver.class));
-            onService = true;
-        }
-//
-        if(!onService2) {
-            Log.d("Serv", "Servicio invocado");
-            startService(new Intent(thisContext, ServiceReceiver.class));
-            Toast.makeText(getBaseContext(), "Servicio iniciado", Toast.LENGTH_SHORT).show();
-            onService2 = true;
-
-        }
-        else
-        {
-            Toast.makeText(getBaseContext(), "Servicio ya en ejecución", Toast.LENGTH_SHORT).show();
-        }
-
-
-        Log.d("hi", "Servicio Creado");
-
-        // Configuracion onClick listeners para los botones
-        // para indicar que se realizara cuando se detecte
-        // el evento de Click
-        IdEncender.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v)
-            {
-
-                if(!onService) {
-//            PreferenceManager.setDefaultValues(this, R.xml.prefs, false);
-//            setPreferencesApplications(getApplicationContext());
-
-                    pendingIntent = PendingIntent.getService(getApplicationContext(), 0,
-                            new Intent(thisContext, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
-                    alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                    if (alarmManager != null) {
-                        alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 1000,
-                                delta_time, pendingIntent);
-                        Log.d("ALARMA", "ALARMA CREADA");
-                    }
-                    onService = true;
-                }
-                if(!onService2) {
-                    Log.d("Serv", "Servicio invocado");
-                    startService(new Intent(thisContext, ServiceReceiver.class));
-                    Toast.makeText(getBaseContext(), "Servicio iniciado", Toast.LENGTH_SHORT).show();
-                    onService2 = true;
-
-                }
-                else
-                {
-                    Toast.makeText(getBaseContext(), "Servicio ya en ejecución", Toast.LENGTH_SHORT).show();
-                }
-
-//                Calendar cal = Calendar.getInstance();
-//                cal.add(Calendar.SECOND, 10);
-//                Intent intent = new Intent(thisContext, SendingService.class);
-//                PendingIntent pintent = PendingIntent.getService(thisContext, 0, intent,
-//                        0);
-//                AlarmManager alarm = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-//                alarm.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-//                        10 * 1000, pintent);
-//
-//
-//                Log.d("hi", "Servicio Creado");
-
-            }
-        });
-
-        IdApagar.setOnClickListener(new View.OnClickListener() {
+        display = (TextView) findViewById(R.id.display);
+        camImageView = (ImageView) findViewById(R.id.imageView);
+        log = (Button) findViewById(R.id.log);
+        log.setOnClickListener(new View.OnClickListener() {
+            @Override
             public void onClick(View v) {
-                stopService(new Intent(thisContext, ServiceReceiver.class));
-                stopService(new Intent(thisContext, SendingService.class));
-                Log.d("hi", "Servicio Apagado");
-                onService = false;
-                onService2 = false;
-                //c=0;
+                updateContent();
             }
         });
 
-        IdDesconectar.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                stopService(new Intent(thisContext, ServiceReceiver.class));
-                stopService(new Intent(thisContext, SendingService.class));
-                if (btSocket!=null)
-                {
-                    try {btSocket.close();}
-                    catch (IOException e)
-                    { Toast.makeText(getBaseContext(), "Error", Toast.LENGTH_SHORT).show();}
-                }
-                onService=false;
-                onService2=false;
-                finish();
-                c=0;
-
-            }
-        });
+        setAPIKey(this);
+        getSupportActionBar().setTitle(BAR_TITLE+Identifiers.APIKey);
     }
 
-
-
     @Override
-    public void onResume()
-    {
+    public void onResume() {
         super.onResume();
-
+        setFilters();  // Start listening notifications from UsbService
+        startService(ServiceReceiver.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
     }
 
     @Override
-    public void onPause()
-    {
+    public void onPause() {
         super.onPause();
+        unregisterReceiver(mUsbReceiver);
+        unbindService(usbConnection);
+    }
+
+    private void updateContent() {
+        mCollector.getSnapshot(mMetrics);
+        String separator = "========================";
+        display.append(separator);
+        String text = "\nSnapshot at " + System.currentTimeMillis() + ":\n" + mMetrics.getMetric(TimeMetrics.class);
+        display.append(text);
+        String text2 = ":\n" + mMetrics.getMetric(CpuMetrics.class);
+        display.append(text2);
+       // String text3 = ":\n" + mMetrics.getMetric(CpuFrequencyMetrics.class);
+        //display.append(text3);
+        String text4 = ":\n" + mMetrics.getMetric(NetworkMetrics.class);
+        display.append(text4);
+
+        Log.d("BatteryMetrics", text);
+        Log.d("BatteryMetrics", text2);
+       // Log.d("BatteryMetrics", text3);
+        Log.d("BatteryMetrics", text4);
+    }
+
+    private void startService(Class<?> service, ServiceConnection serviceConnection, Bundle extras) {
+        if (!ServiceReceiver.SERVICE_CONNECTED) {
+            Intent startService = new Intent(this, service);
+            if (extras != null && !extras.isEmpty()) {
+                Set<String> keys = extras.keySet();
+                for (String key : keys) {
+                    String extra = extras.getString(key);
+                    startService.putExtra(key, extra);
+                }
+            }
+            startService(startService);
+        }
+        Intent bindingIntent = new Intent(this, service);
+        bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setFilters() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ServiceReceiver.ACTION_USB_PERMISSION_GRANTED);
+        filter.addAction(ServiceReceiver.ACTION_NO_USB);
+        filter.addAction(ServiceReceiver.ACTION_USB_DISCONNECTED);
+        filter.addAction(ServiceReceiver.ACTION_USB_NOT_SUPPORTED);
+        filter.addAction(ServiceReceiver.ACTION_USB_PERMISSION_NOT_GRANTED);
+        registerReceiver(mUsbReceiver, filter);
     }
 
 
+    /*
+     * This handler will be passed to UsbService. Data received from serial port is displayed through this handler
+     */
+    private static class MyHandler extends Handler {
+        private final WeakReference<UserInterfaz> mActivity;
 
+        public MyHandler(UserInterfaz activity) {
+            mActivity = new WeakReference<>(activity);
+        }
 
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case ServiceReceiver.MESSAGE_FROM_SERIAL_PORT:
+                    String data = (String) msg.obj;
+                    mActivity.get().display.append(data);
+                    break;
+                case ServiceReceiver.CTS_CHANGE:
+                    Toast.makeText(mActivity.get(), "CTS_CHANGE",Toast.LENGTH_LONG).show();
+                    break;
+                case ServiceReceiver.DSR_CHANGE:
+                    Toast.makeText(mActivity.get(), "DSR_CHANGE",Toast.LENGTH_LONG).show();
+                    break;
+                case ServiceReceiver.SYNC_READ:
+                    String buffer = (String) msg.obj;
+                    mActivity.get().display.append(buffer);
+                    break;
+                case ServiceReceiver.SYNC_PHOTO:
 
+                    String photoName = (String) msg.obj;
+                    Log.d(TAG, "Photo name: "+photoName);
+                    String extStorage = Environment.getExternalStorageDirectory().toString();
+                    File file = new File(extStorage, photoName);
+
+                    String myJpgPath = file.getPath();
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 2;
+                    Bitmap bm = BitmapFactory.decodeFile(myJpgPath, options);
+                    if(bm != null){
+                        int width = bm.getWidth();
+                        int height = bm.getHeight();
+                        Matrix matrix = new Matrix();
+                        float scaleWidth = ((float)mActivity.get().camImageView.getWidth())/ width;
+                        float scaleHeight = scaleWidth;
+                        matrix.postScale(scaleWidth, scaleHeight);
+                        Bitmap result = Bitmap.createBitmap(bm, 0, 0, width,
+                                height, matrix, true);
+                        mActivity.get().camImageView.setImageBitmap(result);
+                    }
+
+                    SendingService.sendPhoto(UserInterfaz.instance(), 1, photoName, (System.currentTimeMillis() / 1000L)+"");
+                    break;
+            }
+        }
+    }
 }

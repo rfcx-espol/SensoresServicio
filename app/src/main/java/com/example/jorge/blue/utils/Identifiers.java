@@ -22,13 +22,14 @@ public class Identifiers {
     //ALARMA EN EJECUCIÓN
     public static AlarmManager alarmManager;
 
-    public static final String URL_SERVER ="http://200.126.14.250/api/Data";
+    public static final String URL_SERVER ="http://200.126.14.250/";
+
 
     public static String APIKey;
     public static Call call;
     public static boolean threadRunning = true;
-    public static String ID_STATION;
-    public static int delta_time =  60 * 1000;   //60 seg
+    public static String ID_STATION = "5b4c066c89e5d232734c6845";
+    public static int delta_time =  10 * 1000;   //120 seg / 2 minutos
     public static String BT_address = "";
 
     @SuppressLint("HardwareIds")

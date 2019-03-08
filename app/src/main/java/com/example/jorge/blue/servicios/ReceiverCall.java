@@ -45,19 +45,6 @@ public class ReceiverCall extends BroadcastReceiver {
 
                 onService2 = true;
             }
-            if (!onService) {
-                pendingIntent = PendingIntent.getService(context, 0,
-                        new Intent(context, SendingService.class), PendingIntent.FLAG_UPDATE_CURRENT);
-                alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-                if (alarmManager != null) {
-                    alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(),
-                            delta_time, pendingIntent);
-                    Log.d("ALARMA", "ALARMA CREADA DESPUÉS DE REINICIAR EL DISPOSITIVO");
-                }
-                onService = true;
-            }
-
-
 
             Log.d("hi", "Servicio Creado");
         }
