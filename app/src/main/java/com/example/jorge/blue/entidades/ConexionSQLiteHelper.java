@@ -25,8 +25,8 @@ public class ConexionSQLiteHelper extends SQLiteOpenHelper {
                     Utilities.FIELD_TIMESTAMP +" TEXT, " + Utilities.FIELD_TYPE + " TEXT, " +
                     Utilities.FIELD_VALUE + " REAL, " +
                     Utilities.FIELD_UNIT + " TEXT, " +
-                    Utilities.FIELD_SENSORID + " TEXT, " +
-                    Utilities.FIELD_LOCATION + " TEXT"+
+                    Utilities.FIELD_LOCATION + " TEXT,"+
+                    Utilities.FIELD_SENSORID + " TEXT " +
                     ")";
 
 

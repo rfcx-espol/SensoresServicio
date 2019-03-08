@@ -121,9 +121,10 @@ public class SendingService extends Service {
                 }
                 y.put("data", jsonArray);
             } catch (Exception e) {
-                Log.d("DB", "no se pudo cargar datos desde la base");
+                e.printStackTrace();
+                Log.d(TAG, "Unsupported database");
             }
-            conn.close();
+           // conn.close();
             return y;
         }
         return null;
@@ -160,7 +161,7 @@ public class SendingService extends Service {
             } catch (Exception e) {
                 Log.d("DB", "no se pudo cargar datos desde la base");
             }
-            conn.close();
+           // conn.close();
             return y;
         }
         return null;

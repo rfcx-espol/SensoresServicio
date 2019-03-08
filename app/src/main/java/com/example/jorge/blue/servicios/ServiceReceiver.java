@@ -463,38 +463,41 @@ public class ServiceReceiver extends Service {
                         try {
                             byte[] received = new byte[n];
                             System.arraycopy(buffer, 0, received, 0, n);
-                            String receivedStr = new String(received);
-                            Log.d(TAG,":"+receivedStr);
+                            String input = new String(received);
+                            Log.d(TAG," DATA TO SPLIT RAW:"+input);
 
 
-                            //Refactorized
-                           // dataBuffer.append(receivedStr);
+                            int token = input.indexOf("#");
 
-                            int endOfLineIndex = receivedStr.indexOf("#");
+                            if(token > 0 ){
+                                String process[] = input.split("#");
 
-                            int startOfLineIndex = receivedStr.indexOf("$$");
+                                for (int i = 0; i < process.length; i++) {
+                                    String measure = process[i];
+                                    Log.d(TAG, "DATA TO SPLIT BEFORE :" + measure);
+                                    int startIndex = measure.indexOf("$$");
+                                    if(startIndex >= 0) {
 
-                            if (startOfLineIndex == 0 && endOfLineIndex > 0) {
-                                String measure = receivedStr;
+                                        Log.d(TAG, "DATA TO SPLIT :" + measure.substring(startIndex+2, measure.length()));
 
-                                Log.d(TAG, "DATA TO SPLIT :"+measure.substring(2,endOfLineIndex));
+                                        String[] parts = measure.substring(startIndex+2, measure.length()).split(",");
+                                        String sensorId = parts[0];
+                                        String type = parts[1];
+                                        String value = parts[2];
+                                        String unit = parts[3];
+                                        String location = parts[4];
+                                        Long tsLong = System.currentTimeMillis() / 1000;
+                                        String ts = tsLong.toString();
+                                        Log.d(TAG, "Saving data sensor in DataBase");
+                                        saveMeasure(ts, type, value, unit, "Enviroment", sensorId);
+                                    }
+                                }
 
-                                String[] parts = measure.substring(2,endOfLineIndex).split(",");
-                                String sensorId = parts[0];
-                                String type = parts[1];
-                                String value = parts[2];
-                                String unit = parts[3];
-                                String location = parts[4];
-                                Long tsLong = System.currentTimeMillis() / 1000;
-                                String ts = tsLong.toString();
-                                Log.d(TAG, "Saving data sensor in DataBase");
-                                saveMeasure(ts, type, value, unit, location, sensorId);
-                                //Cleaning the buffer.
-                                measure = "";
-                                //dataBuffer.delete(0, dataBuffer.length());
+                                mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
+
                             }
 
-                            mHandler.obtainMessage(SYNC_READ, receivedStr).sendToTarget();
+
                         }catch (Exception e){
                             //Maybe it is a image
                            // e.printStackTrace();
