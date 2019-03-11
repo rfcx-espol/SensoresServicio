@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Utilities;
+import com.facebook.infer.annotation.IntegritySink;
 import com.felhr.usbserial.CDCSerialDevice;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
@@ -87,6 +88,7 @@ public class ServiceReceiver extends Service {
     private int MAX_VALUE = 153600;
     byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
     private FileOutputStream ImageOutStream;
+    private StringBuilder dataBuffer = new StringBuilder();
     private static int  fileIndex = 0;
     private static int finalIndex = 0;
     private static int endIndex = -1;
@@ -429,6 +431,7 @@ public class ServiceReceiver extends Service {
     }
 
     public void saveMeasure(String ts, String type, String value, String unit, String location, String id) {
+        Log.d("DB", "timestamp: " + ts +", "+ type + "," + value+","+unit+","+location+","+id);
         SQLiteDatabase db = conn.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(Utilities.FIELD_TIMESTAMP, ts);
@@ -439,12 +442,9 @@ public class ServiceReceiver extends Service {
         values.put(Utilities.FIELD_SENSORID, id);
 
         long result = db.insert(Utilities.MEASURE_TABLE, Utilities.FIELD_SENSORID, values);
-        Log.d("DB", "Saving from timestamp, data, unit:" + ts +","+ value + "," + unit);
-
 
         Log.d("DB", "RESULT :"+result);
         db.close();
-
     }
 
     private class ReadThread extends Thread {
@@ -464,23 +464,32 @@ public class ServiceReceiver extends Service {
                             byte[] received = new byte[n];
                             System.arraycopy(buffer, 0, received, 0, n);
                             String input = new String(received);
-                            Log.d(TAG," DATA TO SPLIT RAW:"+input);
 
 
-                            int token = input.indexOf("#");
+                            dataBuffer.append(input);
 
-                            if(token > 0 ){
-                                String process[] = input.split("#");
+                            Log.d(TAG," DATA TO SPLIT RAW:"+dataBuffer);
 
-                                for (int i = 0; i < process.length; i++) {
-                                    String measure = process[i];
-                                    Log.d(TAG, "DATA TO SPLIT BEFORE :" + measure);
-                                    int startIndex = measure.indexOf("$$");
-                                    if(startIndex >= 0) {
+                            //Initial token
+                            int startIndex = dataBuffer.indexOf("--");
+                            int endOfLineIndex = dataBuffer.indexOf("#");
 
-                                        Log.d(TAG, "DATA TO SPLIT :" + measure.substring(startIndex+2, measure.length()));
+                            if(startIndex >= 0 ){
 
-                                        String[] parts = measure.substring(startIndex+2, measure.length()).split(",");
+                                Log.d(TAG,"DATA SLIDE INDEX: "+startIndex);
+
+                                Log.d(TAG,"DATA SLIDE INDEX FINAL : "+endOfLineIndex);
+
+
+                                if(endOfLineIndex > 0){
+
+
+                                    String dataRow = dataBuffer.substring(startIndex+2, endOfLineIndex);
+
+                                    Log.d(TAG,"DATA SLIDE : "+dataRow);
+                                    String[] parts = dataRow.split(",");
+
+                                    if(parts.length > 2){
                                         String sensorId = parts[0];
                                         String type = parts[1];
                                         String value = parts[2];
@@ -488,14 +497,27 @@ public class ServiceReceiver extends Service {
                                         String location = parts[4];
                                         Long tsLong = System.currentTimeMillis() / 1000;
                                         String ts = tsLong.toString();
-                                        Log.d(TAG, "Saving data sensor in DataBase");
-                                        saveMeasure(ts, type, value, unit, "Enviroment", sensorId);
+                                        Log.d(TAG, "Saving sensor data in Database");
+                                        saveMeasure(ts, type, value, unit, location, sensorId);
                                     }
+
+                                    String dataRowFinal = dataBuffer.substring(endOfLineIndex+1);
+
+                                    dataBuffer.delete(0, dataBuffer.length());
+                                    Log.d(TAG,"DATA SLIDE BEFORE : "+dataBuffer);
+                                    dataBuffer.append(dataRowFinal);
+                                    Log.d(TAG,"DATA SLIDE AFTER : "+dataBuffer);
+
                                 }
 
-                                mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
 
+
+                            }else{
+                                //Purging
+                                dataBuffer.delete(0, dataBuffer.length());
                             }
+
+                            mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
 
 
                         }catch (Exception e){
