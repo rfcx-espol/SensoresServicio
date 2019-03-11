@@ -152,13 +152,14 @@ public class SendingService extends Service {
                     j.put("Value", cursor.getString(3));
                     j.put("Units", cursor.getString(4));
                     j.put("Location", cursor.getString(5));
-                    j.put("SensorId", cursor.getString(6));
+                    j.put("SensorId", Integer.parseInt(cursor.getString(6))); //Prevent wrong
                     jsonArray.put(j);
                 }
                 y.put("data", jsonArray);
                 Log.d("DB", "DATOS: "+ jsonArray.toString());
 
             } catch (Exception e) {
+                e.printStackTrace();
                 Log.d("DB", "no se pudo cargar datos desde la base");
             }
            // conn.close();
