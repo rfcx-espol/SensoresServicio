@@ -213,6 +213,11 @@ public class UserInterfaz extends AppCompatActivity {
                     break;
                 case ServiceReceiver.SYNC_READ:
                     String buffer = (String) msg.obj;
+                    if(mActivity.get().display.length() > 300){
+                        CharSequence temp = mActivity.get().display.getText();
+                        CharSequence sub = temp.subSequence(temp.length() - 100, temp.length() - 1);
+                        mActivity.get().display.setText(sub);
+                    }
                     mActivity.get().display.append(buffer);
                     break;
                 case ServiceReceiver.SYNC_PHOTO:
@@ -237,8 +242,6 @@ public class UserInterfaz extends AppCompatActivity {
                                 height, matrix, true);
                         mActivity.get().camImageView.setImageBitmap(result);
                     }
-
-                    SendingService.sendPhoto(UserInterfaz.instance(), 1, photoName, (System.currentTimeMillis() / 1000L)+"");
                     break;
             }
         }
