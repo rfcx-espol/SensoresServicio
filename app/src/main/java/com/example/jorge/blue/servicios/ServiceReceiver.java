@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -85,14 +86,14 @@ public class ServiceReceiver extends Service {
     private UsbSerialDevice serialPort;
     //private StringBuilder dataBuffer = new StringBuilder();
     private String TAG = "USB-RECEIVER";
-    private int MAX_VALUE = 153600;
+    private int MAX_VALUE = 1503600;
     byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
     private FileOutputStream ImageOutStream;
     private StringBuilder dataBuffer = new StringBuilder();
     private static int  fileIndex = 0;
-    private static int finalIndex = 0;
-    private static int endIndex = -1;
-    boolean validHeader = false;
+    private static int finalIndex = -1;
+    private boolean validImage = false;
+    private boolean processingImage = false;
 
     ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this, Utilities.MEASURE_DATABASE_NAME, null, 1);
 
@@ -392,10 +393,13 @@ public class ServiceReceiver extends Service {
             System.out.println("Saving image: HEADER 2 : "+String.format("%02X ", imageBuffer[1]));
             System.out.println("Saving image: HEADER 3 : "+String.format("%02X ", imageBuffer[2]));
             System.out.println("Saving image:============================================");
-            System.out.println("Saving image: FOOTER 1 : "+String.format("%02X ", imageBuffer[finalIndex -2]));
-            System.out.println("Saving image: FOOTER 2 : "+String.format("%02X ", imageBuffer[finalIndex -1]));
-            System.out.println("Saving image: FOOTER 3 : "+String.format("%02X ", imageBuffer[finalIndex]));
-            ImageOutStream.write(imageBuffer, 0, (finalIndex+1));
+            System.out.println("Saving image: FOOTER 1 : "+String.format("%02X ", imageBuffer[finalIndex - 5]));
+            System.out.println("Saving image: FOOTER 2 : "+String.format("%02X ", imageBuffer[finalIndex - 4]));
+            System.out.println("Saving image: FOOTER 3 : "+String.format("%02X ", imageBuffer[finalIndex - 3]));
+
+            System.out.println("Saving image: FINAL : "+String.format("%02X ", imageBuffer[finalIndex - 2]));
+
+            ImageOutStream.write(imageBuffer, 0, (finalIndex-2));
             //Saving images.
 
             saveImageInfo(nameComposed, "SENSOR");
@@ -447,6 +451,181 @@ public class ServiceReceiver extends Service {
         db.close();
     }
 
+    public void processText(byte[] buffer, int n){
+        //                  //SENSOR DATA
+        try {
+            byte[] received = new byte[n];
+            System.arraycopy(buffer, 0, received, 0, n);
+            String input = new String(received);
+
+
+            dataBuffer.append(input);
+
+            Log.d(TAG,"DATA TO SPLIT RAW:"+dataBuffer);
+
+            //Initial token
+            int startIndex = dataBuffer.indexOf("--");
+            int endOfLineIndex = dataBuffer.indexOf("#");
+
+            if(startIndex >= 0 ){
+
+                Log.d(TAG,"DATA SLIDE INDEX: "+startIndex);
+
+                Log.d(TAG,"DATA SLIDE INDEX FINAL : "+endOfLineIndex);
+
+
+                if(endOfLineIndex > 0){
+
+
+                    String dataRow = dataBuffer.substring(startIndex+2, endOfLineIndex);
+
+                    Log.d(TAG,"DATA SLIDE : "+dataRow);
+                    String[] parts = dataRow.split(",");
+
+                    if(parts.length > 2){
+                        String sensorId = parts[0];
+                        String type = parts[1];
+                        String value = parts[2];
+                        String unit = parts[3];
+                        String location = parts[4];
+                        Long tsLong = System.currentTimeMillis() / 1000;
+                        String ts = tsLong.toString();
+                        Log.d(TAG, "Saving sensor data in Database");
+                        saveMeasure(ts, type, value, unit, location, sensorId);
+                    }
+
+                    String dataRowFinal = dataBuffer.substring(endOfLineIndex+1);
+
+                    dataBuffer.delete(0, dataBuffer.length());
+                    Log.d(TAG,"DATA SLIDE BEFORE : "+dataBuffer);
+                    dataBuffer.append(dataRowFinal);
+                    Log.d(TAG,"DATA SLIDE AFTER : "+dataBuffer);
+
+                }
+
+            }else{
+                //Purging
+                dataBuffer.delete(0, dataBuffer.length());
+            }
+
+            mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
+
+        }catch (Exception e){
+            //Maybe it is a image
+            e.printStackTrace();
+            Log.d(TAG, "It is image data");
+        }
+    }
+
+    public boolean processImage(byte[] buffer, int n){
+
+        if(n > 0 ) {
+            //WARNING:
+            //Each process needs to be with a "try-catch".
+            //PHOTO DATA
+            try {
+                for (int i = 0; i < n; i++) {
+                    //Start of image
+
+                    if (fileIndex > 4
+//                                        && i > 4
+                            && imageBuffer[fileIndex - 5] == (byte) 0XF1
+                            && imageBuffer[fileIndex - 4] == (byte) 0XF2
+                            && imageBuffer[fileIndex - 3] == (byte) 0xF3
+                            && imageBuffer[fileIndex - 2] == (byte) 0xFF
+                            && imageBuffer[fileIndex - 1] == (byte) 0xD8
+//                                        && buffer[i - 5] == (byte) 0X6F
+//                                        && buffer[i - 4] == (byte) 0X74
+//                                        && buffer[i - 3] == (byte) 0x6F
+//                                        && buffer[i - 2] == (byte) 0xFF
+//                                        && buffer[i - 1] == (byte) 0xD8
+                            && buffer[i] == (byte) 0xFF) {
+                        processingImage = true;
+
+                        Log.d(TAG, "Saving image: SPLITER HEADER  1 : " + String.format("%02X ", imageBuffer[fileIndex - 5]));
+                        Log.d(TAG, "Saving image: SPLITER HEADER  2 : " + String.format("%02X ", imageBuffer[fileIndex - 4]));
+                        Log.d(TAG, "Saving image: SPLITER HEADER  3 : " + String.format("%02X ", imageBuffer[fileIndex - 3]));
+
+                        fileIndex = 0;
+                        finalIndex = 0;
+                        validImage = false;
+                        imageBuffer[fileIndex] = (byte) 0xFF;
+                        fileIndex++;
+                        imageBuffer[fileIndex] = (byte) 0xD8;
+                        fileIndex++;
+                        imageBuffer[fileIndex] = (byte) 0xFF;
+                        fileIndex++;
+
+                        Log.d(TAG, "Saving image: HEADER INDEX i : " + i);
+                        Log.d(TAG, "Saving image: HEADER INDEX fileIndex: " + fileIndex);
+
+                    } else {
+                        imageBuffer[fileIndex] = buffer[i];
+
+                        //When the image contain the Quantization Table(s)
+                        if(fileIndex > 1
+                                && imageBuffer[fileIndex - 1] == (byte) 0xFF
+                                && imageBuffer[fileIndex] == (byte) 0xDB
+                        ){
+
+                            Log.d(TAG, "Saving image: VALID IMAGE!!");
+                            validImage = true;
+                        }
+
+
+                        if (fileIndex > 3
+//                                            && i > 3
+                                && finalIndex == 0
+                                && imageBuffer[fileIndex - 4] == (byte) 0xFF
+                                && imageBuffer[fileIndex - 3] == (byte) 0xD9
+                                && imageBuffer[fileIndex - 2] == (byte) 0xF4
+                                && imageBuffer[fileIndex - 1] == (byte) 0xF5
+                                && imageBuffer[fileIndex] == (byte) 0xF6
+//                                            && buffer[i - 4] == (byte) 0xFF
+//                                            && buffer[i - 3] == (byte) 0xD9
+//                                            && buffer[i - 2] == (byte) 0x70
+//                                            && buffer[i - 1] == (byte) 0x68
+//                                            && buffer[i] == (byte) 0x6F
+                        ) {
+                            Log.d(TAG, "Saving image: INDEX i : " + i);
+                            Log.d(TAG, "Saving image: INDEX fileIndex: " + (fileIndex-2));
+                            Log.d(TAG, "Saving image: FOOTER  1 : " + String.format("%02X ", imageBuffer[fileIndex - 2]));
+                            Log.d(TAG, "Saving image: FOOTER  2 : " + String.format("%02X ", imageBuffer[fileIndex - 1]));
+                            Log.d(TAG, "Saving image: FOOTER  3 : " + String.format("%02X ", imageBuffer[fileIndex]));
+
+
+
+                            finalIndex = fileIndex ;
+
+                            if(!validImage){
+                                fileIndex = 0;
+                                finalIndex = 0;
+                            }else if (finalIndex > 1000 && validImage) {
+                                if (saveImagetoSD()) {
+                                    fileIndex = 0;
+                                    processingImage = false;
+                                    validImage = false;
+                                    imageBuffer = new byte[MAX_VALUE];
+                                    Log.d(TAG, "IMAGE SAVED!!!  ");
+                                }
+                            }
+                        }
+                        fileIndex++;
+                    }
+
+                }
+
+
+            }catch (Exception e){
+                e.printStackTrace();
+                Log.d(TAG, "It is sensor data");
+            }finally {
+                return processingImage;
+            }
+        }
+        return processingImage;
+    }
+
     private class ReadThread extends Thread {
         @Override
         public void run() {
@@ -455,142 +634,10 @@ public class ServiceReceiver extends Service {
                 byte[] buffer = new byte[1024];
                 int n = serialPort.syncRead(buffer, 0);
 
-                if(n > 0 ) {
-                    //WARNING:
-                    //Each process needs to be with a "try-catch".
-                    try {
-                        //SENSOR DATA
-                        try {
-                            byte[] received = new byte[n];
-                            System.arraycopy(buffer, 0, received, 0, n);
-                            String input = new String(received);
-
-
-                            dataBuffer.append(input);
-
-                            Log.d(TAG," DATA TO SPLIT RAW:"+dataBuffer);
-
-                            //Initial token
-                            int startIndex = dataBuffer.indexOf("--");
-                            int endOfLineIndex = dataBuffer.indexOf("#");
-
-                            if(startIndex >= 0 ){
-
-                                Log.d(TAG,"DATA SLIDE INDEX: "+startIndex);
-
-                                Log.d(TAG,"DATA SLIDE INDEX FINAL : "+endOfLineIndex);
-
-
-                                if(endOfLineIndex > 0){
-
-
-                                    String dataRow = dataBuffer.substring(startIndex+2, endOfLineIndex);
-
-                                    Log.d(TAG,"DATA SLIDE : "+dataRow);
-                                    String[] parts = dataRow.split(",");
-
-                                    if(parts.length > 2){
-                                        String sensorId = parts[0];
-                                        String type = parts[1];
-                                        String value = parts[2];
-                                        String unit = parts[3];
-                                        String location = parts[4];
-                                        Long tsLong = System.currentTimeMillis() / 1000;
-                                        String ts = tsLong.toString();
-                                        Log.d(TAG, "Saving sensor data in Database");
-                                        saveMeasure(ts, type, value, unit, location, sensorId);
-                                    }
-
-                                    String dataRowFinal = dataBuffer.substring(endOfLineIndex+1);
-
-                                    dataBuffer.delete(0, dataBuffer.length());
-                                    Log.d(TAG,"DATA SLIDE BEFORE : "+dataBuffer);
-                                    dataBuffer.append(dataRowFinal);
-                                    Log.d(TAG,"DATA SLIDE AFTER : "+dataBuffer);
-
-                                }
-
-
-
-                            }else{
-                                //Purging
-                                dataBuffer.delete(0, dataBuffer.length());
-                            }
-
-                            mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
-
-
-                        }catch (Exception e){
-                            //Maybe it is a image
-                           // e.printStackTrace();
-                            Log.d(TAG, "It is image data");
-                        }
-                        //PHOTO DATA
-                        try {
-                            for (int i = 0; i < n; i++) {
-                                //Start of image
-
-                                if (fileIndex >= MAX_VALUE) {
-                                    fileIndex = 0;
-                                }
-
-                                if (fileIndex > 1
-                                        && imageBuffer[fileIndex - 2] == (byte) 0xFF
-                                        && imageBuffer[fileIndex - 1] == (byte) 0xD8
-                                        && buffer[i] == (byte) 0xFF) {
-                                    if (finalIndex > 1000 && endIndex >= 0) {
-                                        endIndex = -1;
-                                        Log.d(TAG, "Saving image: SAVING FOOTER  1 : " + String.format("%02X ", imageBuffer[finalIndex - 1]));
-                                        Log.d(TAG, "Saving image: SAVING FOOTER  2 : " + String.format("%02X ", imageBuffer[finalIndex]));
-                                        Log.d(TAG, "Saving image: INDEX    : " + finalIndex);
-                                        if (saveImagetoSD()) {
-                                            Log.d(TAG, "IMAGE SAVED!!!  ");
-                                        }
-                                    }
-                                    fileIndex = 0;
-                                    validHeader = true;
-                                    imageBuffer[fileIndex] = (byte) 0xFF;
-                                    fileIndex++;
-                                    imageBuffer[fileIndex] = (byte) 0xD8;
-                                    fileIndex++;
-                                    imageBuffer[fileIndex] = (byte) 0xFF;
-                                    Log.d(TAG, "Saving image: HEADER: " + fileIndex);
-                                    fileIndex++;
-
-                                } else {
-                                    imageBuffer[fileIndex] = buffer[i];
-                                    // startIndex = receivedStr.indexOf("#photo");
-                                    // Log.d(TAG,"Saving image: START INDEX PHOTO  : "+startIndex);
-
-                                    if (fileIndex > 0
-                                            && imageBuffer[fileIndex - 1] == (byte) 0xFF
-                                            && imageBuffer[fileIndex] == (byte) 0xD9
-                                    ) {
-
-                                        endIndex = (new String(imageBuffer)).indexOf("photo#");
-                                        if (endIndex >= 0) {
-                                            Log.d(TAG, "Saving image: END INDEX PHOTO  : " + endIndex);
-                                        }
-
-
-                                        Log.d(TAG, "Saving image: PRE - FOOTER  1 : " + String.format("%02X ", imageBuffer[fileIndex - 1]));
-                                        Log.d(TAG, "Saving image: PRE - FOOTER  2 : " + String.format("%02X ", imageBuffer[fileIndex]));
-                                        Log.d(TAG, "Saving image: PRE - INDEX    : " + fileIndex);
-                                        finalIndex = fileIndex;
-
-                                    }
-                                    fileIndex++;
-                                }
-
-                            }
-                        }catch (Exception e){
-                            Log.d(TAG, "It is sensor data");
-                        }
-                    } catch (Exception e) {
-                        Log.d(TAG, "Error: " + e.getStackTrace().toString());
-                        e.printStackTrace();
-                    }
+                if(!processImage(Arrays.copyOf(buffer, buffer.length), n)){
+                    processText(Arrays.copyOf(buffer, buffer.length), n);
                 }
+
             }
         }
     }
