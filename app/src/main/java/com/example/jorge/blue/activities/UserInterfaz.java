@@ -9,6 +9,7 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.hardware.usb.UsbManager;
 import android.media.Image;
 import android.os.Bundle;
 import android.os.Environment;
@@ -48,6 +49,7 @@ public class UserInterfaz extends AppCompatActivity {
 
     static String BAR_TITLE="Data Sender: ";
     public static String TAG = "UserInterfaz";
+    private boolean serviceBound = false;
 
     /*
      * Notifications from UsbService will be received here.
@@ -74,6 +76,18 @@ public class UserInterfaz extends AppCompatActivity {
             }
         }
     };
+
+    private BroadcastReceiver detachReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+                // Unbind the service to allow it to die
+                if(serviceBound) {
+                    unbindService(usbConnection);
+                }
+            }
+        }
+    };
+
     private ServiceReceiver usbService;
     private TextView display;
     private MyHandler mHandler;
@@ -112,6 +126,8 @@ public class UserInterfaz extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_interfaz);
 
+        //getIntent().getParcelableArrayExtra(UsbManager.EXTRA_DEVICE);
+
         mHandler = new MyHandler(this);
 
         display = (TextView) findViewById(R.id.display);
@@ -139,7 +155,10 @@ public class UserInterfaz extends AppCompatActivity {
     public void onPause() {
         super.onPause();
         unregisterReceiver(mUsbReceiver);
-        unbindService(usbConnection);
+        unregisterReceiver(detachReceiver);
+        if(serviceBound) {
+            unbindService(usbConnection);
+        }
     }
 
     private void updateContent() {
@@ -171,10 +190,10 @@ public class UserInterfaz extends AppCompatActivity {
                     startService.putExtra(key, extra);
                 }
             }
-            startService(startService);
+            //startService(startService);
         }
         Intent bindingIntent = new Intent(this, service);
-        bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+        serviceBound = bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
     private void setFilters() {
@@ -185,6 +204,10 @@ public class UserInterfaz extends AppCompatActivity {
         filter.addAction(ServiceReceiver.ACTION_USB_NOT_SUPPORTED);
         filter.addAction(ServiceReceiver.ACTION_USB_PERMISSION_NOT_GRANTED);
         registerReceiver(mUsbReceiver, filter);
+
+        IntentFilter f = new IntentFilter();
+        f.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+        registerReceiver(detachReceiver, f);
     }
 
 
