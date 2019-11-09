@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -126,8 +127,12 @@ public class ServiceReceiver extends Service {
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         findSerialPortDevice();
 
-        readerThread = new ReadThread();
-        readerThread.start();
+        if (port == null) {
+            stopSelf();
+        } else {
+            readerThread = new ReadThread();
+            readerThread.start();
+        }
     }
 
     public IBinder onBind(Intent intent) {
@@ -557,8 +562,14 @@ public class ServiceReceiver extends Service {
                         continue;
                     }
 
-                    n = port.write("1\n".getBytes(), 1000);
-                    Log.i(TAG, "run: Wrote = " + n);
+                    int batt = getBatteryLevel();
+                    Log.i(TAG, "run: " + batt);
+                    if (batt < 10) {
+                        Log.e(TAG, "run: low batt, requesting charge from Arduino");
+                        n = port.write("2\n".getBytes(), 1000);
+                    } else {
+                        n = port.write("1\n".getBytes(), 1000);
+                    }
 
                     port.purgeHwBuffers(true, false);
 
@@ -611,5 +622,15 @@ public class ServiceReceiver extends Service {
 
     static void copyToArr(byte[] source, byte[] dst, int baseIndex, int numElems) {
         System.arraycopy(source, 0, dst, baseIndex, numElems);
+    }
+
+    private int getBatteryLevel() {
+        int batLevel = 0;
+        BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            batLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            Log.i("BatteryLevel", "batt: " + batLevel + "%");
+        }
+        return batLevel;
     }
 }
