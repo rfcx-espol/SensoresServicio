@@ -24,6 +24,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 
+import com.example.jorge.blue.activities.UsbEventReceiverActivity;
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
 import com.example.jorge.blue.utils.Utilities;
 import com.facebook.infer.annotation.IntegritySink;
@@ -89,8 +90,8 @@ public class ServiceReceiver extends Service {
     private int MAX_VALUE = 1503600;
     byte[] imageBuffer = new byte[MAX_VALUE];  // 15KB reserved
     private FileOutputStream ImageOutStream;
-    private StringBuilder dataBuffer = new StringBuilder();
-    private static int  fileIndex = 0;
+    private StringBuffer dataBuffer = new StringBuffer();
+    private static int fileIndex = 0;
     private static int finalIndex = -1;
     private boolean validImage = false;
     private boolean processingImage = false;
@@ -106,8 +107,8 @@ public class ServiceReceiver extends Service {
     private UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
         @Override
         public void onReceivedData(byte[] arg0) {
-            try{
-                Log.d(TAG, "Length:"+arg0.length);
+            try {
+                Log.d(TAG, "Length:" + arg0.length);
                 String data = new String(arg0, "UTF-8");
                 if (mHandler != null)
                     mHandler.obtainMessage(MESSAGE_FROM_SERIAL_PORT, data).sendToTarget();
@@ -123,7 +124,7 @@ public class ServiceReceiver extends Service {
     private UsbSerialInterface.UsbCTSCallback ctsCallback = new UsbSerialInterface.UsbCTSCallback() {
         @Override
         public void onCTSChanged(boolean state) {
-            if(mHandler != null)
+            if (mHandler != null)
                 mHandler.obtainMessage(CTS_CHANGE).sendToTarget();
         }
     };
@@ -134,7 +135,7 @@ public class ServiceReceiver extends Service {
     private UsbSerialInterface.UsbDSRCallback dsrCallback = new UsbSerialInterface.UsbDSRCallback() {
         @Override
         public void onDSRChanged(boolean state) {
-            if(mHandler != null)
+            if (mHandler != null)
                 mHandler.obtainMessage(DSR_CHANGE).sendToTarget();
         }
     };
@@ -173,6 +174,18 @@ public class ServiceReceiver extends Service {
         }
     };
 
+    private final BroadcastReceiver attachReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context arg0, Intent arg1) {
+            if (arg1.getAction().equals(UsbEventReceiverActivity.ACTION_USB_DEVICE_ATTACHED)) {
+                if (!serialPortConnected)
+                    findSerialPortDevice(); // A USB device has been attached. Try to open it as a Serial port
+                connection = usbManager.openDevice(device);
+                new ConnectionThread().start();
+            }
+        }
+    };
+
     /*
      * onCreate will be executed when service is started. It configures an IntentFilter to listen for
      * incoming Intents (USB ATTACHED, USB DETACHED...) and it tries to open a serial port.
@@ -185,6 +198,9 @@ public class ServiceReceiver extends Service {
         setFilter();
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         findSerialPortDevice();
+        Intent i = new Intent(ACTION_USB_PERMISSION_GRANTED); // Broadcast connection to UserInterfaz
+        this.sendBroadcast(i);
+
     }
 
     /* MUST READ about services
@@ -230,9 +246,9 @@ public class ServiceReceiver extends Service {
      * This function will be called from MainActivity to change baud rate
      */
 
-    public void changeBaudRate(int baudRate){
+    public void changeBaudRate(int baudRate) {
         //if(serialPort != null)
-       //     serialPort.setBaudRate(baudRate);
+        //     serialPort.setBaudRate(baudRate);
     }
 
     public void setHandler(Handler mHandler) {
@@ -279,6 +295,10 @@ public class ServiceReceiver extends Service {
         filter.addAction(ACTION_USB_DETACHED);
         filter.addAction(ACTION_USB_ATTACHED);
         registerReceiver(usbReceiver, filter);
+
+        filter = new IntentFilter();
+        filter.addAction(UsbEventReceiverActivity.ACTION_USB_DEVICE_ATTACHED);
+        registerReceiver(attachReceiver, filter);
     }
 
     /*
@@ -350,38 +370,36 @@ public class ServiceReceiver extends Service {
         }
     }
 
-    public Bitmap StringToBitMap(String encodedString){
+    public Bitmap StringToBitMap(String encodedString) {
         try {
-            byte [] encodeByte=Base64.decode(encodedString,Base64.DEFAULT);
-            Bitmap bitmap=BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
+            byte[] encodeByte = Base64.decode(encodedString, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
             return bitmap;
-        } catch(Exception e) {
+        } catch (Exception e) {
             e.getMessage();
             return null;
         }
     }
 
-    public boolean checkSDCard()
-    {
-        if(android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
+    public boolean checkSDCard() {
+        if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
             return true;
         } else {
             return false;
         }
     }
 
-    public boolean saveImagetoSD()
-    {
+    public boolean saveImagetoSD() {
         Log.i(TAG, "saveImagetoSD ");
 
         String extStorage = Environment.getExternalStorageDirectory().toString();
         Date date = new Date();
         CharSequence s = android.text.format.DateFormat.format("MM-dd-yy hh-mm-ss", date.getTime());
-       // String time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.LONG).format(date);
+        // String time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.LONG).format(date);
         String extension = "jpg";
-        String nameComposed = "sensor_"+s+"."+extension;
+        String nameComposed = "sensor_" + s + "." + extension;
         File file = new File(extStorage, nameComposed);
-        if (checkSDCard() == false){
+        if (checkSDCard() == false) {
             Toast.makeText(context, "SD card unmounted or not present", Toast.LENGTH_SHORT).show();
             return false;
         }
@@ -389,17 +407,17 @@ public class ServiceReceiver extends Service {
         try {
             ImageOutStream = new FileOutputStream(file);
             System.out.println("Saving image:============================================");
-            System.out.println("Saving image: HEADER 1 : "+String.format("%02X ", imageBuffer[0]));
-            System.out.println("Saving image: HEADER 2 : "+String.format("%02X ", imageBuffer[1]));
-            System.out.println("Saving image: HEADER 3 : "+String.format("%02X ", imageBuffer[2]));
+            System.out.println("Saving image: HEADER 1 : " + String.format("%02X ", imageBuffer[0]));
+            System.out.println("Saving image: HEADER 2 : " + String.format("%02X ", imageBuffer[1]));
+            System.out.println("Saving image: HEADER 3 : " + String.format("%02X ", imageBuffer[2]));
             System.out.println("Saving image:============================================");
-            System.out.println("Saving image: FOOTER 1 : "+String.format("%02X ", imageBuffer[finalIndex - 5]));
-            System.out.println("Saving image: FOOTER 2 : "+String.format("%02X ", imageBuffer[finalIndex - 4]));
-            System.out.println("Saving image: FOOTER 3 : "+String.format("%02X ", imageBuffer[finalIndex - 3]));
+            System.out.println("Saving image: FOOTER 1 : " + String.format("%02X ", imageBuffer[finalIndex - 5]));
+            System.out.println("Saving image: FOOTER 2 : " + String.format("%02X ", imageBuffer[finalIndex - 4]));
+            System.out.println("Saving image: FOOTER 3 : " + String.format("%02X ", imageBuffer[finalIndex - 3]));
 
-            System.out.println("Saving image: FINAL : "+String.format("%02X ", imageBuffer[finalIndex - 2]));
+            System.out.println("Saving image: FINAL : " + String.format("%02X ", imageBuffer[finalIndex - 2]));
 
-            ImageOutStream.write(imageBuffer, 0, (finalIndex-2));
+            ImageOutStream.write(imageBuffer, 0, (finalIndex - 2));
             //Saving images.
 
             saveImageInfo(nameComposed, "SENSOR");
@@ -412,14 +430,13 @@ public class ServiceReceiver extends Service {
             e.printStackTrace();
         }
 
-        Log.i(TAG, "Save file size = "+finalIndex);
+        Log.i(TAG, "Save file size = " + finalIndex);
 
         return true;
     }
 
-    public void saveImageInfo( String name, String type)
-    {
-        Long tsLong = System.currentTimeMillis()/1000;
+    public void saveImageInfo(String name, String type) {
+        Long tsLong = System.currentTimeMillis() / 1000;
         String timestamp = tsLong.toString();
 
         SQLiteDatabase db = conn.getWritableDatabase();
@@ -429,13 +446,13 @@ public class ServiceReceiver extends Service {
         values.put(Utilities.IMAGE_TIMESTAMP, timestamp);
 
         long result = db.insert(Utilities.IMAGES_TABLE, null, values);
-        Log.d("DB", "Saving data image: " + name+ ", timestamp: " + timestamp);
+        Log.d("DB", "Saving data image: " + name + ", timestamp: " + timestamp);
         db.close();
 
     }
 
     public void saveMeasure(String ts, String type, String value, String unit, String location, String id) {
-        Log.d("DB", "timestamp: " + ts +", "+ type + "," + value+","+unit+","+location+","+id);
+        Log.d("DB", "timestamp: " + ts + ", " + type + "," + value + "," + unit + "," + location + "," + id);
         SQLiteDatabase db = conn.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(Utilities.FIELD_TIMESTAMP, ts);
@@ -447,13 +464,17 @@ public class ServiceReceiver extends Service {
 
         long result = db.insert(Utilities.MEASURE_TABLE, Utilities.FIELD_SENSORID, values);
 
-        Log.d("DB", "RESULT :"+result);
+        Log.d("DB", "RESULT :" + result);
         db.close();
     }
 
-    public void processText(byte[] buffer, int n){
+    public void processText(byte[] buffer, int n) {
         //                  //SENSOR DATA
+        if (n <= 0) {
+            return;
+        }
         try {
+            Log.i(TAG, "processText: " + n + " " + buffer.length);
             byte[] received = new byte[n];
             System.arraycopy(buffer, 0, received, 0, n);
             String input = new String(received);
@@ -461,28 +482,28 @@ public class ServiceReceiver extends Service {
 
             dataBuffer.append(input);
 
-            Log.d(TAG,"DATA TO SPLIT RAW:"+dataBuffer);
+            Log.d(TAG, "DATA TO SPLIT RAW:" + dataBuffer);
 
             //Initial token
             int startIndex = dataBuffer.indexOf("--");
             int endOfLineIndex = dataBuffer.indexOf("#");
 
-            if(startIndex >= 0 ){
+            if (startIndex >= 0) {
 
-                Log.d(TAG,"DATA SLIDE INDEX: "+startIndex);
+                Log.d(TAG, "DATA SLIDE INDEX: " + startIndex);
 
-                Log.d(TAG,"DATA SLIDE INDEX FINAL : "+endOfLineIndex);
-
-
-                if(endOfLineIndex > 0){
+                Log.d(TAG, "DATA SLIDE INDEX FINAL : " + endOfLineIndex);
 
 
-                    String dataRow = dataBuffer.substring(startIndex+2, endOfLineIndex);
+                if (endOfLineIndex > 0 && startIndex > 0) {
 
-                    Log.d(TAG,"DATA SLIDE : "+dataRow);
+
+                    String dataRow = dataBuffer.substring(startIndex + 2, endOfLineIndex);
+
+                    Log.d(TAG, "DATA SLIDE : " + dataRow);
                     String[] parts = dataRow.split(",");
 
-                    if(parts.length > 2){
+                    if (parts.length > 2) {
                         String sensorId = parts[0];
                         String type = parts[1];
                         String value = parts[2];
@@ -494,32 +515,32 @@ public class ServiceReceiver extends Service {
                         saveMeasure(ts, type, value, unit, location, sensorId);
                     }
 
-                    String dataRowFinal = dataBuffer.substring(endOfLineIndex+1);
+                    String dataRowFinal = dataBuffer.substring(endOfLineIndex + 1);
 
                     dataBuffer.delete(0, dataBuffer.length());
-                    Log.d(TAG,"DATA SLIDE BEFORE : "+dataBuffer);
+                    Log.d(TAG, "DATA SLIDE BEFORE : " + dataBuffer);
                     dataBuffer.append(dataRowFinal);
-                    Log.d(TAG,"DATA SLIDE AFTER : "+dataBuffer);
+                    Log.d(TAG, "DATA SLIDE AFTER : " + dataBuffer);
 
                 }
 
-            }else{
+            } else {
                 //Purging
                 dataBuffer.delete(0, dataBuffer.length());
             }
 
             mHandler.obtainMessage(SYNC_READ, input).sendToTarget();
 
-        }catch (Exception e){
+        } catch (Exception e) {
             //Maybe it is a image
             e.printStackTrace();
             Log.d(TAG, "It is image data");
         }
     }
 
-    public boolean processImage(byte[] buffer, int n){
+    public boolean processImage(byte[] buffer, int n) {
 
-        if(n > 0 ) {
+        if (n > 0) {
             //WARNING:
             //Each process needs to be with a "try-catch".
             //PHOTO DATA
@@ -563,10 +584,10 @@ public class ServiceReceiver extends Service {
                         imageBuffer[fileIndex] = buffer[i];
 
                         //When the image contain the Quantization Table(s)
-                        if(fileIndex > 1
+                        if (fileIndex > 1
                                 && imageBuffer[fileIndex - 1] == (byte) 0xFF
                                 && imageBuffer[fileIndex] == (byte) 0xDB
-                        ){
+                        ) {
 
                             Log.d(TAG, "Saving image: VALID IMAGE!!");
                             validImage = true;
@@ -588,19 +609,18 @@ public class ServiceReceiver extends Service {
 //                                            && buffer[i] == (byte) 0x6F
                         ) {
                             Log.d(TAG, "Saving image: INDEX i : " + i);
-                            Log.d(TAG, "Saving image: INDEX fileIndex: " + (fileIndex-2));
+                            Log.d(TAG, "Saving image: INDEX fileIndex: " + (fileIndex - 2));
                             Log.d(TAG, "Saving image: FOOTER  1 : " + String.format("%02X ", imageBuffer[fileIndex - 2]));
                             Log.d(TAG, "Saving image: FOOTER  2 : " + String.format("%02X ", imageBuffer[fileIndex - 1]));
                             Log.d(TAG, "Saving image: FOOTER  3 : " + String.format("%02X ", imageBuffer[fileIndex]));
 
 
+                            finalIndex = fileIndex;
 
-                            finalIndex = fileIndex ;
-
-                            if(!validImage){
+                            if (!validImage) {
                                 fileIndex = 0;
                                 finalIndex = 0;
-                            }else if (finalIndex > 1000 && validImage) {
+                            } else if (finalIndex > 1000 && validImage) {
                                 if (saveImagetoSD()) {
                                     fileIndex = 0;
                                     processingImage = false;
@@ -616,10 +636,10 @@ public class ServiceReceiver extends Service {
                 }
 
 
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 Log.d(TAG, "It is sensor data");
-            }finally {
+            } finally {
                 return processingImage;
             }
         }
@@ -630,11 +650,11 @@ public class ServiceReceiver extends Service {
         @Override
         public void run() {
 
-            while(true){
+            while (true) {
                 byte[] buffer = new byte[1024];
                 int n = serialPort.syncRead(buffer, 0);
 
-                if(!processImage(Arrays.copyOf(buffer, buffer.length), n)){
+                if (!processImage(Arrays.copyOf(buffer, buffer.length), n)) {
                     processText(Arrays.copyOf(buffer, buffer.length), n);
                 }
 

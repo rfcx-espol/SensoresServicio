@@ -34,6 +34,22 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".activities.UsbEventReceiverActivity"
+            android:label="SensoresServicio"
+            android:theme="@style/Theme.Transparent"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:process=":UsbEventReceiverActivityProcess"
+            android:exported="false"
+            >
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" android:resource="@xml/accessory_filter" />
+        </activity>
+
         <service
             android:name=".servicios.ServiceReceiver"
             android:enabled="true"
