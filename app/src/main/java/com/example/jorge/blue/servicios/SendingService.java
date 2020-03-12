@@ -10,7 +10,6 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.StrictMode;
-import android.util.JsonReader;
 import android.util.Log;
 
 import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
@@ -18,11 +17,7 @@ import com.example.jorge.blue.utils.Identifiers;
 import com.example.jorge.blue.utils.ImageSender;
 import com.example.jorge.blue.utils.Utilities;
 
-import okhttp3.OkHttpClient;
-
-
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.DataOutputStream;
@@ -30,7 +25,10 @@ import java.io.File;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import okhttp3.OkHttpClient;
 
 import static com.example.jorge.blue.utils.Identifiers.setAPIKey;
 
@@ -71,8 +69,7 @@ public class SendingService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         int SDK_INT = android.os.Build.VERSION.SDK_INT;
-        if (SDK_INT > 8)
-        {
+        if (SDK_INT > 8) {
             StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder()
                     .permitAll().build();
             StrictMode.setThreadPolicy(policy);
@@ -81,9 +78,9 @@ public class SendingService extends Service {
         }
 
         sendPost();
-        try{
+        try {
             autoSendPhoto();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -99,14 +96,13 @@ public class SendingService extends Service {
     }
 
 
-    public JSONObject getImages()
-    {
+    public JSONObject getImages() {
         SQLiteDatabase db = conn.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.IMAGES_TABLE+" ORDER BY " +Utilities.IMAGE_TIMESTAMP+" LIMIT "+Utilities.LIMIT_BY_DEFAULT_FOR_IMAGES, null);
+        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.IMAGES_TABLE + " ORDER BY " + Utilities.IMAGE_TIMESTAMP + " LIMIT " + Utilities.LIMIT_BY_DEFAULT_FOR_IMAGES, null);
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
 
-        if(responseId) {
+        if (responseId) {
 
             try {
                 while (cursor.moveToNext()) {
@@ -124,26 +120,25 @@ public class SendingService extends Service {
                 e.printStackTrace();
                 Log.d(TAG, "Unsupported database");
             }
-           // conn.close();
+            // conn.close();
             return y;
         }
         return null;
     }
 
 
-    public JSONObject getMeasures()
-    {
+    public JSONObject getMeasures() {
         SQLiteDatabase db = conn.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.MEASURE_TABLE+" ORDER BY " +Utilities.FIELD_TIMESTAMP+" LIMIT "+Utilities.LIMIT_BY_DEFAULT, null);
+        Cursor cursor = db.rawQuery("SELECT * FROM " + Utilities.MEASURE_TABLE + " ORDER BY " + Utilities.FIELD_TIMESTAMP + " LIMIT " + Utilities.LIMIT_BY_DEFAULT, null);
         JSONArray jsonArray = new JSONArray();
         JSONObject y = new JSONObject();
 
-        if(responseId) {
+        if (responseId) {
 
             try {
                 while (cursor.moveToNext()) {
                     JSONObject j = new JSONObject();
-                    Log.d("DB", "DATOS: "+ cursor.getString(3));
+                    Log.d("DB", "DATOS: " + cursor.getString(3));
 
                     j.put("StationId", Identifiers.ID_STATION);
                     j.put("id", cursor.getInt(0));
@@ -156,19 +151,19 @@ public class SendingService extends Service {
                     jsonArray.put(j);
                 }
                 y.put("data", jsonArray);
-                Log.d("DB", "DATOS: "+ jsonArray.toString());
+                Log.d("DB", "DATOS: " + jsonArray.toString());
 
             } catch (Exception e) {
                 e.printStackTrace();
                 Log.d("DB", "no se pudo cargar datos desde la base");
             }
-           // conn.close();
+            // conn.close();
             return y;
         }
         return null;
     }
 
-    public void autoSendPhoto(){
+    public void autoSendPhoto() {
         JSONObject jsonParam = getImages();
         try {
             JSONArray data = jsonParam.getJSONArray("data");
@@ -176,22 +171,22 @@ public class SendingService extends Service {
                 String nameComposed = data.getJSONObject(i).getString("Name");
                 int id = data.getJSONObject(i).getInt("id");
                 String unixtime = data.getJSONObject(i).getString("Timestamp");
-                Log.d(STATION_LOG, "SENDING PHOTO ID: "+id);
-                Log.d(STATION_LOG, "SENDING PHOTO NAME: "+nameComposed);
-                Log.d(STATION_LOG, "SENDING PHOTO UNIXTIME: "+unixtime);
+                Log.d(STATION_LOG, "SENDING PHOTO ID: " + id);
+                Log.d(STATION_LOG, "SENDING PHOTO NAME: " + nameComposed);
+                Log.d(STATION_LOG, "SENDING PHOTO UNIXTIME: " + unixtime);
                 sendPhoto(this, id, nameComposed, unixtime);
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void sendPhoto(Context context, int id, String photoName, String unixtime){
+    public static void sendPhoto(Context context, int id, String photoName, String unixtime) {
 
         String extStorage = Environment.getExternalStorageDirectory().toString();
         File photo = new File(extStorage, photoName);
 
-        boolean exists =  photo.exists();
+        boolean exists = photo.exists();
 
         new ImageSender(context,
                 id, photo, unixtime).execute();
@@ -201,33 +196,32 @@ public class SendingService extends Service {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                Log.d(STATION_LOG, "ANDROID API KEY: "+Identifiers.APIKey);
-                Log.d(STATION_LOG, "STATION ID: "+Identifiers.ID_STATION);
+                Log.d(STATION_LOG, "ANDROID API KEY: " + Identifiers.APIKey);
+                Log.d(STATION_LOG, "STATION ID: " + Identifiers.ID_STATION);
 
                 try {
-                    String urlComposed = Identifiers.URL_SERVER+"api/Data";
+                    String urlComposed = Identifiers.URL_SERVER + "api/Data";
                     URL url = new URL(urlComposed);
                     HttpURLConnection connect = (HttpURLConnection) url.openConnection();
                     connect.setRequestMethod("POST");
                     connect.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-                    connect.setRequestProperty("Accept","application/json");
+                    connect.setRequestProperty("Accept", "application/json");
                     connect.setDoOutput(true);
                     connect.setDoInput(true);
 
                     JSONObject jsonParam = getMeasures();
 
-                    Log.d(STATION_LOG, "DATA TO SEND: "+jsonParam.toString());
+                    Log.d(STATION_LOG, "DATA TO SEND: " + jsonParam.toString());
                     DataOutputStream os = new DataOutputStream(connect.getOutputStream());
                     os.writeBytes(jsonParam.toString());
 
                     os.flush();
                     os.close();
                     st = connect.getResponseCode();
-                    Log.d(STATION_LOG, "RESPONSE STATUS CODE: "+String.valueOf(st));
-                    Log.d(STATION_LOG, "RESPONSE MESSAGE: "+connect.getResponseMessage());
+                    Log.d(STATION_LOG, "RESPONSE STATUS CODE: " + String.valueOf(st));
+                    Log.d(STATION_LOG, "RESPONSE MESSAGE: " + connect.getResponseMessage());
                     connect.disconnect();
-                    if (st == 200)
-                    {
+                    if (st == 200) {
                         Log.d(STATION_LOG, "UPLOADED WITH SUCCESS!!");
                         deleteMeasures(jsonParam.getJSONArray("data"));
                         Log.d(STATION_LOG, "DATA DELETED!!");
@@ -235,7 +229,7 @@ public class SendingService extends Service {
 
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Log.d(STATION_LOG, "ERROR: "+e.getMessage());
+                    Log.d(STATION_LOG, "ERROR: " + e.getMessage());
 
                 }
             }
@@ -245,21 +239,21 @@ public class SendingService extends Service {
     }
 
     public void deleteMeasures(JSONArray data) {
-        try{
+        try {
 
             List<Integer> ids = new ArrayList<Integer>();
 
-            for (int i = 0; i< data.length(); i++) {
+            for (int i = 0; i < data.length(); i++) {
                 int id = data.getJSONObject(i).getInt("id");
 
                 ids.add(id);
             }
             SQLiteDatabase db = conn.getReadableDatabase();
 
-            StringBuilder b = new StringBuilder("DELETE FROM " + Utilities.MEASURE_TABLE +" WHERE "+Utilities.FIELD_ID+" IN(" );
+            StringBuilder b = new StringBuilder("DELETE FROM " + Utilities.MEASURE_TABLE + " WHERE " + Utilities.FIELD_ID + " IN(");
             String[] whereArgs = new String[ids.size()];
             int index = 0;
-            for (int id: ids) {
+            for (int id : ids) {
                 whereArgs[index] = String.valueOf(id);
                 b.append("?");
                 if (index < ids.size() - 1) {
@@ -271,9 +265,9 @@ public class SendingService extends Service {
 
             db.execSQL(b.toString(), whereArgs);
 
-            Log.d(TAG,"DELETING MEASURE IDS: "+whereArgs.toString());
+            Log.d(TAG, "DELETING MEASURE IDS: " + Arrays.toString(whereArgs));
             conn.close();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

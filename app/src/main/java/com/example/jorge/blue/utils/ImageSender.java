@@ -1,5 +1,13 @@
 package com.example.jorge.blue.utils;
 
+import android.content.Context;
+import android.content.ContextWrapper;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.util.Log;
+
+import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,15 +23,6 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
-import android.content.Context;
-import android.content.ContextWrapper;
-import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
-import android.util.Log;
-
-import com.example.jorge.blue.entidades.ConexionSQLiteHelper;
-import com.example.jorge.blue.servicios.SendingService;
-
 
 public class ImageSender extends AsyncTask<Void, Integer, Integer> {
 
@@ -35,7 +34,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     private OutputStream outputStream;
     private PrintWriter writer;
 
-    private static final String url = Identifiers.URL_SERVER+"api/imgcapture";
+    private static final String url = Identifiers.URL_SERVER + "api/imgcapture";
 
     public static final String TAG = "ImageSender";
 
@@ -73,7 +72,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     }
 
     @Override
-    protected void onPreExecute(){
+    protected void onPreExecute() {
         super.onPreExecute();
     }
 
@@ -159,7 +158,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
             resultRspns = HttpURLConnection.HTTP_OK;
             responseStr = response.toString();
         } else {
-            BufferedReader reader = new BufferedReader(new InputStreamReader( httpConn.getErrorStream() ) );
+            BufferedReader reader = new BufferedReader(new InputStreamReader(httpConn.getErrorStream()));
             String line = null;
             while ((line = reader.readLine()) != null) {
                 response.append(line);
@@ -178,7 +177,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     @Override
     protected Integer doInBackground(Void... params) {
         try {
-            if (file == null){
+            if (file == null) {
                 Log.e("ERROR ON UPLOAD IMAGE", "FILE NULL");
                 return 0;
             }
@@ -192,7 +191,7 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
             addFormField("ApiKey", Identifiers.APIKey);
             addFilePart("ImageFile", file);
 
-            Log.d("IMAGE SENDER", "SENDING... PHOTO: "+writer.toString());
+            Log.d("IMAGE SENDER", "SENDING... PHOTO: " + writer.toString());
 
             return send();
         } catch (Exception e) {
@@ -207,9 +206,9 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
         try {
             if (result == HttpURLConnection.HTTP_OK) {
                 success();
-                Log.d("IMAGE SENDER", "SUCCESS SENDING PHOTO: "+result);
+                Log.d("IMAGE SENDER", "SUCCESS SENDING PHOTO: " + result);
             } else {
-                Log.d("IMAGE SENDER", "FAILED SENDING PHOTO: "+result);
+                Log.d("IMAGE SENDER", "FAILED SENDING PHOTO: " + result);
                 failure();
             }
         } catch (Exception e) {
@@ -223,18 +222,18 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
     }
 
     public void deleteImages(int imageId) {
-        try{
-            Log.d(TAG,"DELETING IMAGE ID: "+imageId);
+        try {
+            Log.d(TAG, "DELETING IMAGE ID: " + imageId);
             ConexionSQLiteHelper conn = new ConexionSQLiteHelper(this.context, Utilities.MEASURE_DATABASE_NAME, null, 1);
             List<Integer> ids = new ArrayList<Integer>();
             ids.add(imageId);
 
             SQLiteDatabase db = conn.getReadableDatabase();
 
-            StringBuilder b = new StringBuilder("DELETE FROM " + Utilities.IMAGES_TABLE +" WHERE "+Utilities.FIELD_ID+" IN(" );
+            StringBuilder b = new StringBuilder("DELETE FROM " + Utilities.IMAGES_TABLE + " WHERE " + Utilities.FIELD_ID + " IN(");
             String[] whereArgs = new String[ids.size()];
             int index = 0;
-            for (int id: ids) {
+            for (int id : ids) {
                 whereArgs[index] = String.valueOf(id);
                 b.append("?");
                 if (index < ids.size() - 1) {
@@ -246,15 +245,16 @@ public class ImageSender extends AsyncTask<Void, Integer, Integer> {
 
             db.execSQL(b.toString(), whereArgs);
 
+            if (!this.file.delete())
+                failure();
 
             conn.close();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private void failure() {
-        //TODO: Add the code to delete de image in the phone.
         Log.d("IMAGE SENDER", "FAILED SENDING PHOTO");
     }
 

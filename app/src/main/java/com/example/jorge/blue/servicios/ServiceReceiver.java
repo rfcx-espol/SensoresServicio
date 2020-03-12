@@ -495,7 +495,7 @@ public class ServiceReceiver extends Service {
                 Log.d(TAG, "DATA SLIDE INDEX FINAL : " + endOfLineIndex);
 
 
-                if (endOfLineIndex > 0 && startIndex > 0) {
+                if (endOfLineIndex > 0) {
 
 
                     String dataRow = dataBuffer.substring(startIndex + 2, endOfLineIndex);
@@ -618,15 +618,19 @@ public class ServiceReceiver extends Service {
                             finalIndex = fileIndex;
 
                             if (!validImage) {
+                                Log.e(TAG, "processImage: Image not valid!");
                                 fileIndex = 0;
                                 finalIndex = 0;
-                            } else if (finalIndex > 1000 && validImage) {
+                            } else {
                                 if (saveImagetoSD()) {
                                     fileIndex = 0;
                                     processingImage = false;
                                     validImage = false;
                                     imageBuffer = new byte[MAX_VALUE];
                                     Log.d(TAG, "IMAGE SAVED!!!  ");
+                                }
+                                else {
+                                    Log.e(TAG, "IMAGE NOT SAVED!!!");
                                 }
                             }
                         }
